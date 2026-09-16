@@ -119,8 +119,8 @@ export function Hero() {
           <div className="lg:col-span-5">
             <div className="border border-gridline bg-carbon p-5 md:p-6">
               <div className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                <span>Fig. 01 — Side profile</span>
-                <span className="text-chalk">8 mm drop</span>
+                <span>Fig. 01 — Stack section</span>
+                <span className="text-chalk">38 mm heel / 30 mm forefoot</span>
               </div>
               <ShoeProfile className="mt-4" />
             </div>
