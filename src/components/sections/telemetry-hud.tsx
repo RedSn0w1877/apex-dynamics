@@ -131,7 +131,8 @@ export function TelemetryHud() {
                   <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">{readout.label}</dt>
                   <dd className="mt-1.5 font-display text-2xl italic font-bold tabular-nums text-chalk">
                     {reading[readout.key]}
-                    <span className="ml-1 text-sm not-italic text-chalk/50">{readout.unit}</span>
+                    {/* Real space so the value doesn't read as "142bpm" when copied or announced. */}{" "}
+                    <span className="text-sm not-italic text-chalk/50">{readout.unit}</span>
                   </dd>
                 </div>
               ))}
