@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { buildShoeParts, heelTop, lugLayout, xAt } from "./shoe-geometry";
+import { buildShoeParts, lugLayout, makeKnitTexture } from "./shoe-geometry";
 
 export type ExplodeSource = { value: number };
 export type PointerRef = RefObject<{ x: number; y: number }>;
@@ -39,26 +39,34 @@ export function StackModel({ explode, pointer, parallax = 0.28 }: StackModelProp
   const parts = useMemo(() => buildShoeParts(), []);
   const lugSpots = useMemo(() => lugLayout(), []);
   const lugGeometry = useMemo(() => new THREE.BoxGeometry(0.075, 0.03, 0.05), []);
+  const knit = useMemo(() => makeKnitTexture(), []);
 
   const mats = useMemo(
     () => ({
-      rubber: new THREE.MeshStandardMaterial({ color: "#141417", roughness: 0.92 }),
-      carrier: new THREE.MeshStandardMaterial({ color: "#2b2b31", roughness: 0.7 }),
-      foam: new THREE.MeshStandardMaterial({ color: "#e4e4dc", roughness: 0.62 }),
+      rubber: new THREE.MeshStandardMaterial({ color: "#151518", roughness: 0.9 }),
+      carrier: new THREE.MeshStandardMaterial({ color: "#2c2c33", roughness: 0.66 }),
+      foam: new THREE.MeshStandardMaterial({ color: "#e8e8e1", roughness: 0.55 }),
       plate: new THREE.MeshStandardMaterial({
         color: "#ccff00",
-        roughness: 0.25,
+        roughness: 0.22,
         metalness: 0.5,
         emissive: "#ccff00",
         emissiveIntensity: 0.4,
       }),
-      mesh: new THREE.MeshStandardMaterial({ color: "#34343c", roughness: 0.88, side: THREE.DoubleSide }),
-      collar: new THREE.MeshStandardMaterial({ color: "#1c1c21", roughness: 0.8 }),
-      opening: new THREE.MeshStandardMaterial({ color: "#070708", roughness: 1, side: THREE.DoubleSide }),
-      lace: new THREE.MeshStandardMaterial({ color: "#f5f5f5", roughness: 0.55 }),
+      knit: new THREE.MeshStandardMaterial({
+        color: "#3b3b44",
+        roughness: 0.82,
+        bumpMap: knit ?? undefined,
+        bumpScale: 1.2,
+      }),
+      liner: new THREE.MeshStandardMaterial({ color: "#0b0b0d", roughness: 1, side: THREE.BackSide }),
+      shell: new THREE.MeshStandardMaterial({ color: "#1b1b20", roughness: 0.32, metalness: 0.15, side: THREE.DoubleSide }),
+      tongue: new THREE.MeshStandardMaterial({ color: "#2a2a31", roughness: 0.75 }),
+      collar: new THREE.MeshStandardMaterial({ color: "#141417", roughness: 0.7 }),
+      lace: new THREE.MeshStandardMaterial({ color: "#f2f2ee", roughness: 0.5 }),
       volt: new THREE.MeshStandardMaterial({ color: "#ccff00", emissive: "#ccff00", emissiveIntensity: 0.55 }),
     }),
-    [],
+    [knit],
   );
 
   // Place the tread lugs once; instancing draws all of them in one call.
@@ -77,11 +85,16 @@ export function StackModel({ explode, pointer, parallax = 0.28 }: StackModelProp
 
   useEffect(
     () => () => {
-      Object.values(parts).flat().forEach((g) => g.dispose());
+      Object.values(parts)
+        .flat()
+        .forEach((g) => {
+          if (g instanceof THREE.BufferGeometry) g.dispose();
+        });
       Object.values(mats).forEach((m) => m.dispose());
       lugGeometry.dispose();
+      knit?.dispose();
     },
-    [parts, mats, lugGeometry],
+    [parts, mats, lugGeometry, knit],
   );
 
   useFrame((state, delta) => {
@@ -110,7 +123,7 @@ export function StackModel({ explode, pointer, parallax = 0.28 }: StackModelProp
     const { x, y } = pointer.current;
     // Slow turntable + cursor parallax, easing toward a side-on read as it explodes.
     const idleSpin = Math.sin(t * 0.18) * 0.32;
-    group.rotation.y = THREE.MathUtils.damp(group.rotation.y, -0.35 + idleSpin + x * parallax - e * 0.3, 3.5, dt);
+    group.rotation.y = THREE.MathUtils.damp(group.rotation.y, -0.35 + idleSpin * (1 - e * 0.6) + x * parallax + e * 0.2, 3.5, dt);
     group.rotation.x = THREE.MathUtils.damp(group.rotation.x, 0.12 - y * parallax * 0.4 + e * 0.12, 3.5, dt);
   });
 
@@ -134,18 +147,21 @@ export function StackModel({ explode, pointer, parallax = 0.28 }: StackModelProp
           <mesh geometry={parts.foam} material={mats.foam} />
         </group>
         <group>
-          <mesh geometry={parts.upper} material={mats.mesh} />
-          <mesh geometry={parts.opening} material={mats.opening} />
+          <mesh geometry={parts.upper} material={mats.knit} />
+          <mesh geometry={parts.upper} material={mats.liner} />
+          <mesh geometry={parts.heelCounter} material={mats.shell} />
+          <mesh geometry={parts.toeCap} material={mats.shell} />
+          <mesh geometry={parts.tongue} material={mats.tongue} />
           <mesh geometry={parts.collar} material={mats.collar} />
-          {parts.laces.map((g, i) => (
-            <mesh key={i} geometry={g} material={mats.lace} />
+          {[...parts.rails, ...parts.laces].map((g, i) => (
+            <mesh key={i} geometry={g} material={i < parts.rails.length ? mats.collar : mats.lace} />
           ))}
           {parts.stripes.map((g, i) => (
             <mesh key={i} geometry={g} material={mats.volt} />
           ))}
           {/* Heel pull tab. */}
-          <mesh material={mats.volt} position={[xAt(0.015), heelTop() + 0.03, 0]}>
-            <boxGeometry args={[0.035, 0.14, 0.08]} />
+          <mesh material={mats.volt} position={[parts.heelTab.x - 0.01, parts.heelTab.y - 0.02, 0]} rotation={[0, 0, 0.18]}>
+            <boxGeometry args={[0.03, 0.16, 0.07]} />
           </mesh>
         </group>
       </group>

@@ -68,7 +68,7 @@ function KineticName({ name }: { name: string }) {
       <span aria-hidden>
         {words.map((word, i) => (
           <span key={`${word}-${i}`}>
-            <span className="inline-block overflow-hidden pb-[0.06em] align-bottom">
+            <span className="-mr-[0.14em] -mt-[0.2em] inline-block overflow-hidden pb-[0.06em] pr-[0.14em] pt-[0.2em] align-bottom">
               <motion.span className="inline-block" variants={wordVariants}>
                 {word}
               </motion.span>

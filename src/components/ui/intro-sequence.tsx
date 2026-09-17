@@ -156,7 +156,7 @@ export function IntroSequence() {
           className="mt-4 block h-px w-[min(74vw,620px)] origin-left bg-volt"
         />
 
-        <span className="mt-4 flex flex-wrap justify-center overflow-hidden font-display text-[clamp(1.5rem,5vw,2.75rem)] font-black italic uppercase leading-none tracking-tighter text-chalk">
+        <span className="mt-4 flex flex-wrap justify-center overflow-hidden px-[0.15em] pt-[0.15em] font-display text-[clamp(1.5rem,5vw,2.75rem)] font-black italic uppercase leading-none tracking-tighter text-chalk">
           {WORDMARK.map((word, w) => (
             <span key={word}>
               {word.split("").map((letter, l) => (

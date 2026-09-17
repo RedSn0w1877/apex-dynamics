@@ -50,7 +50,7 @@ const KineticWords = memo(function KineticWords({
         const delay = 0.1 + (startIndex + i) * 0.06;
         return (
           <span key={word}>
-            <span className="-mr-[0.14em] inline-block overflow-hidden pb-[0.05em] pr-[0.14em] align-bottom">
+            <span className="-mr-[0.14em] -mt-[0.2em] inline-block overflow-hidden pb-[0.05em] pr-[0.14em] pt-[0.2em] align-bottom">
               <motion.span
                 className="inline-block"
                 initial={reduce ? false : KINETIC_INITIAL}
