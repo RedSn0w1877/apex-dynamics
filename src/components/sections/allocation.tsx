@@ -155,7 +155,7 @@ export function Allocation() {
     { id: "size", label: "Size", value: `EU ${form.size}` },
     { id: "stack", label: "Stack height", value: distance.stack },
     { id: "weight", label: "Weight per shoe", value: `${weightG} g` },
-  ], [form.distance, form.size, distance, weightG]);
+  ], [form.size, distance, weightG]);
 
   return (
     <section id="allocation" className="border-b border-gridline bg-carbon">

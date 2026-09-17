@@ -2,7 +2,7 @@
 
 // © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute.
 
-import { useCallback, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useCallback, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import { BorderBeam } from "border-beam";
 import { LogMark } from "@/components/brand/log-mark";
