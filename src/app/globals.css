@@ -31,7 +31,31 @@
 html {
   background: var(--color-void);
   color-scheme: dark;
+}
+
+/*
+ * Lenis drives scrolling now. Native `scroll-behavior: smooth` fights it, so it's
+ * only enabled as the fallback when Lenis is absent (reduced-motion users).
+ */
+html:not(.lenis) {
   scroll-behavior: smooth;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: clip;
 }
 
 body {

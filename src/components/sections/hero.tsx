@@ -2,33 +2,40 @@
 
 // © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute.
 
+import { memo, useRef } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Marquee } from "@/components/ui/marquee";
 import { MagneticButton } from "@/components/ui/magnetic-button";
 import { ShoeProfile } from "@/components/ui/shoe-profile";
+import { LazyStackScene } from "@/components/three/lazy-stack-scene";
 import { LogMark } from "@/components/brand/log-mark";
 import { EASE_OUT } from "@/components/ui/reveal";
+import { gsap, useGSAP } from "@/lib/gsap";
+import { explodeStore } from "@/lib/explode-store";
 
 const TICKER_ITEMS = [
-  "PROPULSION MATRIX",
-  "218G RACE WEIGHT",
-  "DUAL CARBON FORK",
+  "218 G PER SHOE",
+  "38 MM HEEL / 30 MM FOREFOOT",
+  "8 MM DROP",
   "84% ENERGY RETURN",
-  "VO2 MAX TESTED",
+  "BUILT FOR 50K TO 100 MILES",
 ] as const;
 
 const BADGES = [
-  { label: "Elevation gain", value: "+1,240 m" },
-  { label: "Pace", value: "2:48 /km" },
-  { label: "Lactate", value: "3.8 mmol/L" },
+  { label: "Weight", value: "218 g" },
+  { label: "Stack height", value: "38 / 30 mm" },
+  { label: "Built for", value: "50K – 100 mi" },
 ] as const;
+
+const KINETIC_INITIAL = { y: "105%" };
+const KINETIC_ANIMATE = { y: "0%" };
 
 /**
  * One line of the headline, revealed word by word. The h1 carries the plain-text
  * aria-label; this is the aria-hidden visual layer.
  */
-function KineticWords({
+const KineticWords = memo(function KineticWords({
   words,
   startIndex,
   className,
@@ -40,29 +47,56 @@ function KineticWords({
   const reduce = useReducedMotion();
   return (
     <span aria-hidden className={`block ${className ?? ""}`}>
-      {words.map((word, i) => (
-        <span key={word}>
-          <span className="inline-block overflow-hidden pb-[0.05em] align-bottom">
-            <motion.span
-              className="inline-block"
-              initial={reduce ? false : { y: "105%" }}
-              animate={{ y: "0%" }}
-              transition={{ duration: 0.7, ease: EASE_OUT, delay: 0.1 + (startIndex + i) * 0.06 }}
-            >
-              {word}
-            </motion.span>
-          </span>
-          {/* A real space character, not just CSS margin, so selecting or copying this text doesn't run words together. */}
-          {i < words.length - 1 && " "}
+      {words.map((word, i) => {
+        const delay = 0.1 + (startIndex + i) * 0.06;
+        return (
+          <span key={word}>
+            <span className="inline-block overflow-hidden pb-[0.05em] align-bottom">
+              <motion.span
+                className="inline-block"
+                initial={reduce ? false : KINETIC_INITIAL}
+                animate={KINETIC_ANIMATE}
+                transition={{ duration: 0.7, ease: EASE_OUT, delay }}
+              >
+                {word}
+              </motion.span>
+            </span>
+            {/* A real space character, not just CSS margin, so selecting or copying this text doesn't run words together. */}
+            {i < words.length - 1 && " "}
         </span>
-      ))}
+      )})}
     </span>
   );
-}
+});
 
 export function Hero() {
+  const section = useRef<HTMLElement>(null);
+
+  useGSAP(
+    () => {
+      // Scroll scrubs the stack apart and back together — the whole hero is one
+      // timeline rather than a set of independent triggers, so it reads as a shot.
+      gsap
+        .timeline({
+          scrollTrigger: {
+            trigger: section.current,
+            start: "top top",
+            end: "+=120%",
+            scrub: 0.7,
+            invalidateOnRefresh: true,
+          },
+        })
+        .to(explodeStore, { value: 1, ease: "power2.inOut", duration: 1 });
+
+      return () => {
+        explodeStore.value = 0;
+      };
+    },
+    { scope: section },
+  );
+
   return (
-    <section id="top" className="relative border-b border-gridline pt-16">
+    <section id="top" ref={section} className="relative border-b border-gridline pt-16">
       <div className="mx-auto max-w-[1440px] px-5 pt-10 md:px-10">
         <LogMark log="01" title="Prototype 04 — race day telemetry" />
       </div>
@@ -71,13 +105,15 @@ export function Hero() {
         {/* Asymmetric split: type carries the left, the spec diagram anchors the right. */}
         <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-volt">Apex Pro / Prototype 04</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-volt">
+              Prototype 04 — Carbon-plated trail racing shoe
+            </p>
             <h1
-              aria-label="Engineered for oxygen debt."
+              aria-label="218 grams between you and the mountain."
               className="mt-5 font-display text-[clamp(2.75rem,5.6vw,5rem)] italic font-black uppercase leading-[0.86] tracking-tighter text-chalk"
             >
-              <KineticWords words={["Engineered", "for"]} startIndex={0} />
-              <KineticWords words={["oxygen", "debt."]} startIndex={2} className="text-volt" />
+              <KineticWords words={["218", "grams"]} startIndex={0} className="text-volt" />
+              <KineticWords words={["between", "you", "and", "the", "mountain."]} startIndex={2} />
             </h1>
 
             <motion.p
@@ -86,8 +122,9 @@ export function Hero() {
               transition={{ duration: 0.6, delay: 0.7 }}
               className="mt-7 max-w-lg text-[15px] leading-relaxed text-chalk/65"
             >
-              A forked carbon plate splits at the toe so the forefoot flexes on uneven ground instead of see-sawing.
-              Dual-density PEBA foam gives 84% energy return without giving up ground feel on technical descents.
+              Prototype 04 is a trail racing shoe built for 50K and longer. A carbon plate under the forefoot gives
+              back 84% of the energy you put into every stride, so the last hour of a race feels closer to the
+              first. Everything below is the test data behind that number.
             </motion.p>
 
             <motion.div
@@ -117,12 +154,18 @@ export function Hero() {
             gating it behind JS makes it vanish on a throttled tab or a failed hydration.
           */}
           <div className="lg:col-span-5">
-            <div className="border border-gridline bg-carbon p-5 md:p-6">
-              <div className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                <span>Fig. 01 — Stack section</span>
-                <span className="text-chalk">38 mm heel / 30 mm forefoot</span>
+            <div className="border border-gridline bg-carbon">
+              <div className="flex items-baseline justify-between border-b border-gridline px-5 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
+                <span>Fig. 01 — Exploded stack</span>
+                <span className="text-chalk">Scroll to separate</span>
               </div>
-              <ShoeProfile className="mt-4" />
+              {/* Live 3D: the four layers pull apart as the hero timeline scrubs. */}
+              <div className="h-[340px] md:h-[420px]">
+                <LazyStackScene explode={explodeStore} />
+              </div>
+              <div className="border-t border-gridline px-5 py-4">
+                <ShoeProfile />
+              </div>
             </div>
           </div>
         </div>

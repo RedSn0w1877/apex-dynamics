@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { Big_Shoulders, Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { SmoothScrollProvider } from "@/components/providers/smooth-scroll";
 import { CopyrightGuard } from "@/components/brand/copyright-guard";
 import { WatermarkRail } from "@/components/brand/watermark-rail";
 import { COPYRIGHT_NOTICE, STUDIO } from "@/lib/copyright";
@@ -60,7 +61,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           is hardcoded to match this site's GitHub Pages project path (/apex-dynamics).
         */}
         <link rel="license" href="/apex-dynamics/legal/terms" />
-        {children}
+        <SmoothScrollProvider>{children}</SmoothScrollProvider>
         <WatermarkRail />
         <CopyrightGuard />
         <Toaster theme="dark" position="bottom-right" toastOptions={{ style: { background: "#0c0c0e", border: "1px solid #1f1f23", color: "#f5f5f5" } }} />

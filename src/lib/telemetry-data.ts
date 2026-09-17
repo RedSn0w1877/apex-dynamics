@@ -58,6 +58,12 @@ export const TELEMETRY: readonly TelemetrySample[] = RAW_ELEVATION.map((elevatio
 export const TELEMETRY_MAX_ELEVATION = Math.max(...TELEMETRY.map((s) => s.elevationM));
 export const TELEMETRY_MAX_KM = TELEMETRY.length - 1;
 
+/** The summit of the route — computed once at parse time, not per render. */
+export const TELEMETRY_PEAK = TELEMETRY.reduce(
+  (best, sample) => (sample.elevationM > best.elevationM ? sample : best),
+  TELEMETRY[0]
+);
+
 /** Linear-interpolated reading at any point along the route, for smooth scrubbing. */
 export function sampleAt(km: number): TelemetrySample {
   const clamped = Math.min(Math.max(km, 0), TELEMETRY_MAX_KM);
