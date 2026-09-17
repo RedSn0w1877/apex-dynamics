@@ -31,7 +31,7 @@ type ParticleFlowProps = {
  * during render is impure, and a re-render would otherwise reshuffle the whole field.
  */
 export function ParticleFlow({
-  count = 2600,
+  count = 1400,
   speed = 1,
   intensity,
   color = "#f5f5f5",
@@ -39,7 +39,7 @@ export function ParticleFlow({
   width = 16,
   height = 7,
   depth = 7,
-  size = 0.028,
+  size = 0.022,
 }: ParticleFlowProps) {
   const points = useRef<THREE.Points>(null);
   const seeds = useRef<Float32Array>(new Float32Array(0));
@@ -63,7 +63,7 @@ export function ParticleFlow({
       nextSeeds[i] = Math.random();
 
       // A minority of particles burn volt — enough to read as accent, not confetti.
-      const tint = Math.random() < 0.18 ? hot : base;
+      const tint = Math.random() < 0.1 ? hot : base;
       colors[i3] = tint.r;
       colors[i3 + 1] = tint.g;
       colors[i3 + 2] = tint.b;
@@ -121,7 +121,7 @@ export function ParticleFlow({
         size={size}
         vertexColors
         transparent
-        opacity={0.75}
+        opacity={0.45}
         sizeAttenuation
         depthWrite={false}
         blending={THREE.AdditiveBlending}

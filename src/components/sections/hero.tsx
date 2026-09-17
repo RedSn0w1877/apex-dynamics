@@ -7,7 +7,6 @@ import { ArrowUpRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Marquee } from "@/components/ui/marquee";
 import { MagneticButton } from "@/components/ui/magnetic-button";
-import { ShoeProfile } from "@/components/ui/shoe-profile";
 import { LazyStackScene } from "@/components/three/lazy-stack-scene";
 import { LogMark } from "@/components/brand/log-mark";
 import { EASE_OUT } from "@/components/ui/reveal";
@@ -51,7 +50,7 @@ const KineticWords = memo(function KineticWords({
         const delay = 0.1 + (startIndex + i) * 0.06;
         return (
           <span key={word}>
-            <span className="inline-block overflow-hidden pb-[0.05em] align-bottom">
+            <span className="-mr-[0.14em] inline-block overflow-hidden pb-[0.05em] pr-[0.14em] align-bottom">
               <motion.span
                 className="inline-block"
                 initial={reduce ? false : KINETIC_INITIAL}
@@ -81,7 +80,7 @@ export function Hero() {
           scrollTrigger: {
             trigger: section.current,
             start: "top top",
-            end: "+=120%",
+            end: "+=55%",
             scrub: 0.7,
             invalidateOnRefresh: true,
           },
@@ -156,15 +155,12 @@ export function Hero() {
           <div className="lg:col-span-5">
             <div className="border border-gridline bg-carbon">
               <div className="flex items-baseline justify-between border-b border-gridline px-5 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                <span>Fig. 01 — Exploded stack</span>
+                <span>Fig. 01 — Prototype 04, exploded</span>
                 <span className="text-chalk">Scroll to separate</span>
               </div>
-              {/* Live 3D: the four layers pull apart as the hero timeline scrubs. */}
-              <div className="h-[340px] md:h-[420px]">
+              {/* Live 3D: the shoe pulls apart into its five layers as the hero timeline scrubs. */}
+              <div className="h-[320px] md:h-[440px]">
                 <LazyStackScene explode={explodeStore} />
-              </div>
-              <div className="border-t border-gridline px-5 py-4">
-                <ShoeProfile />
               </div>
             </div>
           </div>

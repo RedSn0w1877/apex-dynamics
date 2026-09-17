@@ -69,7 +69,7 @@ export function WindTunnel() {
                 airflow={airflowStore}
                 cameraPosition={[0, 0.9, 5.2]}
                 target={[0, 0.2, 0]}
-                particleCount={3400}
+                particleCount={1900}
                 parallax={0.12}
               />
             </div>

@@ -47,7 +47,7 @@ export default function StackScene({
   explode,
   airflow,
   parallax = 0.28,
-  particleCount = 2600,
+  particleCount = 1400,
 }: StackSceneProps) {
   const wrapper = useRef<HTMLDivElement>(null);
   // Pause the render loop when off screen — saves GPU and battery.
