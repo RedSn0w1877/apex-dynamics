@@ -197,7 +197,8 @@ export function SiteNav() {
             <ArrowUpRight aria-hidden className="h-3.5 w-3.5" strokeWidth={2.25} />
           </a>
 
-          <div className="relative h-9 w-9 md:hidden">
+          {/* 44px: the smallest comfortable touch target. */}
+          <div className="relative h-11 w-11 md:hidden">
             {/* Decorative gooey layer: a volt slab with a droplet that flicks
                 off when the drawer opens. Strictly pointer-events-none and
                 aria-hidden so the real <button> below stays the only control. */}
@@ -208,13 +209,14 @@ export function SiteNav() {
                   blur={5}
                   contrast={16}
                   filterPadding={30}
-                  className="relative block h-9 w-9"
+                  className="relative block h-11 w-11"
                 >
                   <Liquid.Item className="absolute inset-0" transition="bouncy">
-                    <span className="block h-9 w-9" />
+                    <span className="block h-11 w-11" />
                   </Liquid.Item>
                   <Liquid.Item
-                    className="absolute left-[13px] top-[13px]"
+                    // Centred in the 44px slab: (44 - 10) / 2.
+                    className="absolute left-[17px] top-[17px]"
                     x={open ? 16 : 0}
                     y={open ? -15 : 0}
                     transition="bouncy"
@@ -231,7 +233,7 @@ export function SiteNav() {
               aria-expanded={open}
               aria-controls="mobile-nav"
               aria-label={open ? "Close menu" : "Open menu"}
-              className={`relative z-10 flex h-9 w-9 items-center justify-center ${
+              className={`relative z-10 flex h-11 w-11 items-center justify-center ${
                 mounted ? "text-void" : "border border-gridline text-chalk"
               }`}
             >

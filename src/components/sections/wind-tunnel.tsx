@@ -6,6 +6,7 @@ import { memo, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { LazyStackScene } from "@/components/three/lazy-stack-scene";
 import { airflowStore } from "@/lib/explode-store";
+import { useMedia } from "@/lib/use-media";
 import { LogMark } from "@/components/brand/log-mark";
 import { Reveal, EASE_OUT } from "@/components/ui/reveal";
 import { DRAG_COEFFICIENTS, WIND_SPEEDS, wattsSavedPerKm, type WindSpeedKey } from "@/lib/wind-tunnel-data";
@@ -37,6 +38,9 @@ const BarRow = memo(function BarRow({ label, cd, color }: { label: string; cd: n
 export function WindTunnel() {
   const [speed, setSpeed] = useState<WindSpeedKey>(25);
   const saved = wattsSavedPerKm(speed);
+  // Matches the `md:` breakpoint that reveals the scene, so the canvas is never
+  // mounted on a phone where it would only be hidden by CSS.
+  const wide = useMedia("(min-width: 768px)");
 
   // Drive the particle field straight from the selected wind speed: pick 35 km/h
   // and the air visibly rips. Written to a plain object so the Canvas doesn't
@@ -63,15 +67,22 @@ export function WindTunnel() {
           </Reveal>
 
           <div className="lg:col-span-8">
-            {/* Live airflow over the stack — speed is bound to the toggle below. */}
-            <div className="mb-px h-[260px] border border-gridline bg-void md:h-[320px]">
-              <LazyStackScene
-                airflow={airflowStore}
-                cameraPosition={[0, 0.9, 5.2]}
-                target={[0, 0.2, 0]}
-                particleCount={1900}
-                parallax={0.12}
-              />
+            {/*
+              Live airflow over the stack — speed is bound to the toggle below.
+              Desktop only: the hero already holds a WebGL context, and a phone
+              running two of them at once pays for it in frame rate and battery.
+              The comparator below carries the section on its own.
+            */}
+            <div className="mb-px hidden h-[260px] border border-gridline bg-void md:block md:h-[320px]">
+              {wide ? (
+                <LazyStackScene
+                  airflow={airflowStore}
+                  cameraPosition={[0, 0.9, 5.2]}
+                  target={[0, 0.2, 0]}
+                  particleCount={1900}
+                  parallax={0.12}
+                />
+              ) : null}
             </div>
             <div className="border border-gridline bg-carbon p-6 md:p-8">
               <div className="flex flex-col gap-6">
