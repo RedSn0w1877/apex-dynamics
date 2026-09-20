@@ -73,23 +73,27 @@ export function Hero() {
 
   useGSAP(
     () => {
-      // Scroll scrubs the stack apart and back together — the whole hero is one
-      // timeline rather than a set of independent triggers, so it reads as a shot.
-      gsap
-        .timeline({
-          scrollTrigger: {
-            trigger: section.current,
-            start: "top top",
-            end: "+=55%",
-            scrub: 0.7,
-            invalidateOnRefresh: true,
-          },
-        })
-        .to(explodeStore, { value: 1, ease: "power2.inOut", duration: 1 });
+      const media = gsap.matchMedia();
+      media.add("(prefers-reduced-motion: no-preference)", () => {
+        // Scroll scrubs the stack apart and back together — the whole hero is one
+        // timeline rather than a set of independent triggers, so it reads as a shot.
+        gsap
+          .timeline({
+            scrollTrigger: {
+              trigger: section.current,
+              start: "top top",
+              end: "+=55%",
+              scrub: 0.7,
+              invalidateOnRefresh: true,
+            },
+          })
+          .to(explodeStore, { value: 1, ease: "power2.inOut", duration: 1 });
 
-      return () => {
-        explodeStore.value = 0;
-      };
+        return () => {
+          explodeStore.value = 0;
+        };
+      });
+      return () => media.revert();
     },
     { scope: section },
   );
@@ -123,7 +127,7 @@ export function Hero() {
             >
               Prototype 04 is a trail racing shoe built for 50K and longer. A carbon plate under the forefoot gives
               back 84% of the energy you put into every stride, so the last hour of a race feels closer to the
-              first. Everything below is the test data behind that number.
+              first. Explore the concept through interactive, simulated test data below.
             </motion.p>
 
             <motion.div

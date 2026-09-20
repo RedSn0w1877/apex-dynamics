@@ -2,7 +2,7 @@
 
 // © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute.
 
-import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from "react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import {
   AnimatePresence,
@@ -49,6 +49,38 @@ export function SiteNav() {
   const [condensed, setCondensed] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [active, setActive] = useState<SectionId>("top");
+  const header = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        menuButton.current?.focus({ preventScroll: true });
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(header.current?.querySelectorAll<HTMLElement>("a[href],button") ?? [])
+        .filter((node) => node.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    const media = window.matchMedia("(min-width: 768px)");
+    const onResize = () => { if (media.matches) setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    media.addEventListener("change", onResize);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      media.removeEventListener("change", onResize);
+    };
+  }, [open]);
 
   // The gooey blob is decorative and client-only — keeping it out of the server
   // render keeps its SVG filter layer from ever hitting hydration.
@@ -108,6 +140,7 @@ export function SiteNav() {
 
   return (
     <motion.header
+      ref={header}
       // `initial={false}` on purpose: the bar is at rest on first paint, so it
       // is never invisible because an entrance animation failed to run.
       initial={false}
@@ -116,8 +149,8 @@ export function SiteNav() {
       onFocus={() => setHidden(false)}
       className={`fixed inset-x-0 top-0 z-50 border-b transition-colors duration-300 ${
         condensed
-          ? "border-gridline bg-void/90 backdrop-blur-md"
-          : "border-gridline/60 bg-void/70 backdrop-blur-sm"
+          ? "border-gridline bg-void"
+          : "border-gridline/60 bg-void"
       }`}
     >
       <motion.nav
@@ -228,6 +261,7 @@ export function SiteNav() {
             )}
 
             <button
+              ref={menuButton}
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}

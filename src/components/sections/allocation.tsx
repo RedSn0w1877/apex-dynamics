@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Check } from "lucide-react";
-import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { BorderBeam } from "border-beam";
 import { LogMark } from "@/components/brand/log-mark";
@@ -90,13 +89,16 @@ function validate(form: FormState): Errors {
 }
 
 /** A confetti burst tinted to the site's own three-color palette, not the library default rainbow. */
-function fireAllocationConfetti() {
+async function fireAllocationConfetti() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const confetti = (await import("canvas-confetti")).default;
   confetti({
     particleCount: 90,
     spread: 70,
     origin: { y: 0.65 },
     colors: ["#ccff00", "#f5f5f5", "#3f3f46"],
     scalar: 0.9,
+    disableForReducedMotion: true,
   });
 }
 

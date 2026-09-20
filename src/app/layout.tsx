@@ -20,6 +20,8 @@ const bigShoulders = Big_Shoulders({
   subsets: ["latin"],
   weight: ["700", "900"],
   display: "swap",
+  adjustFontFallback: false,
+  fallback: ["Impact", "Arial Narrow", "sans-serif"],
 });
 
 const jetbrainsMono = JetBrains_Mono({

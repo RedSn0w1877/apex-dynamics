@@ -29,9 +29,10 @@ type StackModelProps = {
   explode?: ExplodeSource;
   pointer: PointerRef;
   parallax?: number;
+  reduce?: boolean;
 };
 
-export function StackModel({ explode, pointer, parallax = 0.28 }: StackModelProps) {
+export function StackModel({ explode, pointer, parallax = 0.28, reduce = false }: StackModelProps) {
   const root = useRef<THREE.Group>(null);
   const stack = useRef<THREE.Group>(null);
   const lugs = useRef<THREE.InstancedMesh>(null);
@@ -122,7 +123,7 @@ export function StackModel({ explode, pointer, parallax = 0.28 }: StackModelProp
 
     const { x, y } = pointer.current;
     // Slow turntable + cursor parallax, easing toward a side-on read as it explodes.
-    const idleSpin = Math.sin(t * 0.18) * 0.32;
+    const idleSpin = reduce ? 0 : Math.sin(t * 0.18) * 0.32;
     group.rotation.y = THREE.MathUtils.damp(group.rotation.y, -0.35 + idleSpin * (1 - e * 0.6) + x * parallax + e * 0.2, 3.5, dt);
     group.rotation.x = THREE.MathUtils.damp(group.rotation.x, 0.12 - y * parallax * 0.4 + e * 0.12, 3.5, dt);
   });

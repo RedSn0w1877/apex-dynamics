@@ -205,7 +205,7 @@ export function TelemetryHud() {
               </span>
             </h2>
             <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-chalk/65">
-              This is a real 30 km test run. Drag across the hills to move through it and watch what the climbs do
+              Explore a simulated 30 km trail run. Drag across the hills to move through it and watch what the climbs do
               to a runner: heart rate climbs, each foot stays on the ground longer, steps get shorter — and the
               plate keeps handing energy back.
             </p>
@@ -323,14 +323,15 @@ export function TelemetryHud() {
                   <motion.circle
                     cx={markerX}
                     cy={markerY}
-                    // Static `r` so the element is always valid SVG. Animating an
-                    // attribute that has no base value renders `r="undefined"`
-                    // on the first paint, before motion takes it over.
+                    // Pulse with scale, not `r`: motion writes r="undefined" before
+                    // its first frame, which is invalid SVG and logs an error.
                     r={6}
                     fill="none"
                     stroke="#ccff00"
                     strokeWidth={1.5}
-                    animate={{ r: [6, 24], opacity: [0.6, 0] }}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                    animate={{ scale: [1, 4], opacity: [0.6, 0] }}
                     transition={{ duration: beatSeconds, repeat: Infinity, ease: "easeOut" }}
                   />
                 )}

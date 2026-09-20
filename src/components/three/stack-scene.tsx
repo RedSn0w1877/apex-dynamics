@@ -11,6 +11,7 @@ import { StackModel, type ExplodeSource } from "./stack-model";
 import { ParticleFlow } from "./particle-flow";
 import { SceneBoundary } from "./scene-boundary";
 import { COPYRIGHT_SHORT } from "@/lib/copyright";
+import { useMedia, usePageVisible } from "@/lib/use-media";
 
 export type Vec3 = readonly [number, number, number];
 
@@ -51,23 +52,27 @@ export default function StackScene({
 }: StackSceneProps) {
   const wrapper = useRef<HTMLDivElement>(null);
   // Pause the render loop when off screen — saves GPU and battery.
-  const inView = useInView(wrapper, { margin: "200px 0px" });
+  const inView = useInView(wrapper, { margin: "60px 0px" });
+  const visible = usePageVisible();
+  const compact = useMedia("(max-width: 767px), (pointer: coarse)");
+  const reduce = useMedia("(prefers-reduced-motion: reduce)");
   const pointer = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
+    if (!inView || !visible || compact || reduce) return;
     const onMove = (event: PointerEvent) => {
       pointer.current.x = (event.clientX / window.innerWidth) * 2 - 1;
       pointer.current.y = -((event.clientY / window.innerHeight) * 2 - 1);
     };
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => window.removeEventListener("pointermove", onMove);
-  }, []);
+  }, [inView, visible, compact, reduce]);
 
   return (
     <div ref={wrapper} className="relative h-full w-full">
       <Canvas
-        frameloop={inView ? "always" : "never"}
-        dpr={[1, 2]}
+        frameloop={inView && visible ? "always" : "never"}
+        dpr={compact ? [1, 1.25] : [1, 1.5]}
         camera={{ position: [...cameraPosition], fov: 32, near: 0.1, far: 60 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       >
@@ -79,10 +84,10 @@ export default function StackScene({
         <directionalLight position={[-5, 2, -2]} intensity={0.55} color="#8891a8" />
         <directionalLight position={[-2, 1.5, -5]} intensity={1.15} color="#ccff00" />
 
-        <StackModel explode={explode} pointer={pointer} parallax={parallax} />
-        <ParticleFlow count={particleCount} intensity={airflow} />
+        <StackModel explode={explode} pointer={pointer} parallax={compact || reduce ? 0 : parallax} reduce={reduce} />
+        {!reduce ? <ParticleFlow count={compact ? Math.min(particleCount, 600) : particleCount} intensity={airflow} /> : null}
 
-        <ContactShadows position={[0, -1.15, 0]} opacity={0.55} blur={2.6} scale={11} far={4} resolution={512} />
+        <ContactShadows position={[0, -1.15, 0]} opacity={0.55} blur={2.6} scale={11} far={4} resolution={compact ? 256 : 512} />
 
         {/* HDR comes from a CDN; if it's blocked the lights above still carry the scene. */}
         <SceneBoundary fallback={null}>

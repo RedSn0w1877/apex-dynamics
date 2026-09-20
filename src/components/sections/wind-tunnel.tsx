@@ -23,10 +23,10 @@ const BarRow = memo(function BarRow({ label, cd, color }: { label: string; cd: n
       </div>
       <div className="mt-2 h-3 bg-gridline">
         <motion.div
-          className="h-full"
-          style={{ backgroundColor: color }}
-          initial={{ width: 0 }}
-          whileInView={{ width: `${widthPct}%` }}
+          className="h-full origin-left"
+          style={{ backgroundColor: color, width: `${widthPct}%` }}
+          initial={{ scaleX: 0 }}
+          whileInView={{ scaleX: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: EASE_OUT }}
         />
@@ -61,8 +61,8 @@ export function WindTunnel() {
             </h2>
             <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-chalk/65">
               Every shoe shoves air out of the way, and that costs you energy. A narrower toe box and a lower
-              profile shove less. We ran both shoes in a scale-model wind tunnel — this is the power you stop
-              wasting at race pace.
+              profile shove less. This simulated wind-tunnel comparison shows how the estimated power changes
+              at different speeds.
             </p>
           </Reveal>
 
@@ -99,7 +99,7 @@ export function WindTunnel() {
                       role="radio"
                       aria-checked={speed === v}
                       onClick={() => setSpeed(v)}
-                      className={`h-10 border px-4 font-mono text-xs uppercase tracking-[0.16em] transition-colors ${
+                      className={`h-11 border px-4 font-mono text-xs uppercase tracking-[0.16em] transition-colors ${
                         speed === v
                           ? "border-volt bg-volt text-void"
                           : "border-gridline text-chalk/60 hover:border-chalk/40 hover:text-chalk"
@@ -117,7 +117,7 @@ export function WindTunnel() {
                   <p className="shrink-0 text-right">
                     <span className="block font-display text-4xl italic font-black tabular-nums text-volt">{saved}W</span>
                     <span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                      saved per km
+                      estimated saving
                     </span>
                   </p>
                 </div>

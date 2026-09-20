@@ -112,11 +112,11 @@ export function IntroSequence() {
           return (
             <div key={i} className="relative h-full flex-1">
               <motion.div
-                initial={{ height: "100%" }}
-                animate={{ height: "0%" }}
+                initial={{ scaleY: 1 }}
+                animate={{ scaleY: 0 }}
                 transition={{ duration: 0.38, ease: EASE_OUT, delay: WIPE_AT + i * 0.03 }}
-                className={`absolute inset-x-0 flex border-gridline bg-void ${
-                  up ? "top-0 items-end border-r" : "bottom-0 items-start border-l"
+                className={`absolute inset-x-0 flex h-full border-gridline bg-void ${
+                  up ? "top-0 origin-top items-end border-r" : "bottom-0 origin-bottom items-start border-l"
                 }`}
               >
                 <span className="block h-[2px] w-full bg-volt" />
