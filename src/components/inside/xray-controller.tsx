@@ -33,7 +33,8 @@ import { XrayStills } from "./xray-stills";
  *                 Cycles cuts, stepped by scroll (lite) or the slider only (reduce)
  *   live-pending  capable desktops: at the first pause (no scroll for
  *                 250 ms, then idle), fetch the 3D chunk, the pack and three
- *                 textures at once
+ *                 textures at once; at the first pause once the visitor is in
+ *                 the section, start WebGL (no context before that)
  *   live          the WebGL cut, scrubbed by scroll, dragged across the shoe,
  *                 or set with the slider. The canvas takes over from the
  *                 Cycles poster only once the cut starts (or a drag does), so
@@ -84,6 +85,7 @@ export function XrayController() {
   /** Whether scrolling drives the cut (false under reduced motion: slider only, no sticky stage). */
   const scrub = useSyncExternalStore(subscribeNothing, canScrub, serverScrub);
   const [near, setNear] = useState(false);
+  const [inSection, setInSection] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [station, setStation] = useState(0);
@@ -236,12 +238,15 @@ export function XrayController() {
     });
     const still = stillRef.current;
     if (still) {
-      // The 4:3 still is drawn with object-fit: contain against the right edge (object-position 100% 50%).
+      // The 4:3 still: contained against the right edge on wider stages, and on a phone a cover crop
+      // anchored at the heel so the shoe fills the width. Read both from the computed style.
       const r = still.getBoundingClientRect();
+      const cs = getComputedStyle(still);
       const ar = 4 / 3;
-      const w = Math.min(r.width, r.height * ar) || 1;
+      const w = (cs.objectFit === "cover" ? Math.max(r.width, r.height * ar) : Math.min(r.width, r.height * ar)) || 1;
       const h = w / ar;
-      s.box = { x: r.right - sr.left - w, y: r.top - sr.top + (r.height - h) / 2, w, h };
+      const [px, py] = cs.objectPosition.split(" ").map((v) => (v.endsWith("%") ? parseFloat(v) / 100 : 0.5));
+      s.box = { x: r.left - sr.left + (r.width - w) * px, y: r.top - sr.top + (r.height - h) * (py ?? 0.5), w, h };
     }
     // The poster matches the live camera's dolly on narrow stages, so the canvas fades in without a jump.
     const { dolly } = liveFrame(CAMERA_LIVE.fov, sr.width / Math.max(1, sr.height));
@@ -287,7 +292,46 @@ export function XrayController() {
     return () => io.disconnect();
   }, [near]);
 
+  // The visitor is in the section: it reaches the top half of the screen. Only then may WebGL start.
+  useEffect(() => {
+    const section = trackRef.current?.closest("section");
+    if (!section || mode !== "live-pending" || inSection) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        setInSection(true);
+      },
+      { rootMargin: "0px 0px -50% 0px" },
+    );
+    io.observe(section);
+    return () => io.disconnect();
+  }, [mode, inSection]);
+
   /* ------------------------------------------------------------ live load --- */
+
+  /*
+   * Two steps, each at a scroll pause. A viewport away: fetch the 3D chunk, the pack and the
+   * three textures (network and image decode, no GL). In the section: create the renderer,
+   * compile and draw. Above #inside the page never holds a WebGL context, so pausing there
+   * costs no draws and no frames.
+   */
+  const assets = useRef<Promise<[typeof import("./xray-scene"), ArrayBuffer, TexImageSource, TexImageSource, TexImageSource]> | null>(
+    null,
+  );
+  const fetchAssets = useCallback(() => {
+    assets.current ??= Promise.all([
+      import("./xray-scene"),
+      fetch(`${BASE_PATH}/proto04/proto04.bin`).then((r) => {
+        if (!r.ok) throw new Error(`proto04.bin: HTTP ${r.status}`);
+        return r.arrayBuffer();
+      }),
+      bitmap(TEXTURES.atlas.file.src),
+      bitmap(TEXTURES.matcap.file.src),
+      bitmap(TEXTURES.shadow.file.src),
+    ]);
+    return assets.current;
+  }, []);
 
   useEffect(() => {
     if (mode !== "live-pending") return;
@@ -302,16 +346,7 @@ export function XrayController() {
     async function load() {
       const t0 = performance.now();
       try {
-        const [scene, pack, atlas, matcap, shadow] = await Promise.all([
-          import("./xray-scene"),
-          fetch(`${BASE_PATH}/proto04/proto04.bin`).then((r) => {
-            if (!r.ok) throw new Error(`proto04.bin: HTTP ${r.status}`);
-            return r.arrayBuffer();
-          }),
-          bitmap(TEXTURES.atlas.file.src),
-          bitmap(TEXTURES.matcap.file.src),
-          bitmap(TEXTURES.shadow.file.src),
-        ]);
+        const [scene, pack, atlas, matcap, shadow] = await fetchAssets();
         if (cancelled || !canvas || !stage) return;
         const xray = await scene.createXray({
           canvas,
@@ -362,7 +397,9 @@ export function XrayController() {
     window.addEventListener("scroll", onScroll, { passive: true });
     const go = () => {
       window.removeEventListener("scroll", onScroll);
-      void load();
+      if (inSection) void load();
+      // Not in the section yet: only the downloads, so the start is quick once the visitor arrives.
+      else fetchAssets().catch(() => void (assets.current = null));
     };
     const check = () => {
       timer = 0;
@@ -387,7 +424,7 @@ export function XrayController() {
       if (idle) window.cancelIdleCallback(idle);
       window.clearTimeout(timer);
     };
-  }, [mode, onFrame, reveal]);
+  }, [mode, inSection, fetchAssets, onFrame, reveal]);
 
   // Dispose only on unmount (client navigation to /legal).
   useEffect(

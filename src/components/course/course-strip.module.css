@@ -25,6 +25,7 @@
 .mark {
   display: inline-flex;
   align-items: center;
+  min-width: 44px;
   min-height: 44px;
   padding-right: 0.08em;
   font-size: 30px;
@@ -53,6 +54,8 @@
   --ph: 28px;
   position: relative;
   height: var(--ph);
+  /* The checkpoints' hit areas size themselves to the line (cqi), so they never overlap. */
+  container-type: inline-size;
 }
 
 .line,
@@ -122,18 +125,23 @@
   }
 }
 
-/* A 28 × 44 hit area centred on each checkpoint's tick, which sits on the course line. */
+/*
+ * A 44 × 44 hit area centred on each checkpoint's tick, which sits on the course line. The
+ * closest pair (CP3 and CP4) are 23.3% of the line apart, so on a line shorter than 189 px
+ * the areas narrow to that share and touch instead of overlapping.
+ */
 .cp {
+  --hw: min(44px, 23.3cqi);
   position: absolute;
   top: -8px;
-  left: calc(var(--cx) - 14px);
-  width: 28px;
+  left: calc(var(--cx) - var(--hw) / 2);
+  width: var(--hw);
   height: 44px;
 }
 
 .tick {
   position: absolute;
-  left: 13px;
+  left: calc(var(--hw) / 2 - 0.5px);
   top: calc(8px + var(--cy) * var(--ph) - 5px);
   width: 1px;
   height: 10px;
@@ -200,9 +208,19 @@
   transform: skewX(8deg);
 }
 
-/* The tag stays 34–40 px tall to fit the strip; its hit area reaches 44 px. */
+/* The tag stays 40 px tall on wider screens; its hit area reaches 44 px. On a phone it is 44 px itself. */
 .bib {
   position: relative;
+}
+
+/*
+ * One bib action per screen: with JS, the tag waits off stage while the hero's bib button or
+ * the bib form is on screen (course-strip.tsx sets data-shown when neither is), so the strip
+ * never repeats the action beside them. Visibility takes it out of the tab order too.
+ */
+:global(html.js) .bib:not([data-shown]) {
+  visibility: hidden;
+  opacity: 0;
 }
 
 .bib::after {
@@ -224,11 +242,37 @@
   }
 }
 
+/* Stepping aside or back: opacity only under reduced motion; the hide waits for the fade. */
+:global(html.js) .bib {
+  transition:
+    opacity 150ms ease-out,
+    visibility 0s linear 150ms;
+}
+
+:global(html.js) .bib[data-shown] {
+  transition:
+    opacity 150ms ease-out,
+    visibility 0s;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .bib {
+  .bib,
+  :global(html.js) .bib[data-shown] {
     transition:
       transform 160ms var(--ease-settle),
-      background-color 150ms ease;
+      background-color 150ms ease,
+      opacity 200ms var(--ease-settle),
+      visibility 0s;
+  }
+
+  /* Comes in sliding down from the strip's top edge; leaves the same way, a touch faster. */
+  :global(html.js) .bib:not([data-shown]) {
+    transform: skewX(-8deg) translateY(-10px);
+    transition:
+      transform 160ms var(--ease-settle),
+      background-color 150ms ease,
+      opacity 160ms var(--ease-settle),
+      visibility 0s linear 160ms;
   }
 
   .bib:active {
@@ -266,10 +310,10 @@
 }
 
 @media (max-width: 639px) {
+  /* The profile takes every pixel the wordmark and the tag leave: at 390 that spaces the checkpoints 45 px apart. */
   .nav {
-    grid-template-columns: auto 120px auto;
-    justify-content: space-between;
-    column-gap: 12px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 16px;
   }
 
   .mark {
@@ -283,9 +327,13 @@
   }
 
   .bib {
-    height: 34px;
-    padding: 0 12px;
+    height: 44px;
+    padding: 0 10px;
     font-size: 15px;
+  }
+
+  .bib::after {
+    content: none;
   }
 }
 

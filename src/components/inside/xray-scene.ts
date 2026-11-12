@@ -356,6 +356,7 @@ export async function createXray(input: XrayInput): Promise<Xray> {
   function step(now: number) {
     raf = 0;
     if (disposed) return;
+    if (!inView()) return snap();
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     const k = 1 - Math.exp(-LAMBDA * dt);
@@ -377,11 +378,41 @@ export async function createXray(input: XrayInput): Promise<Xray> {
     if (!settled) raf = requestAnimationFrame(step);
   }
 
+  /*
+   * Off screen the cut never eases: a jump past the track (an anchor link, a fling) used to land
+   * one last scroll event that set a far goal, and the cut then eased toward it for a dozen frames
+   * with the stage already gone. Now it snaps to the goal undrawn, and the stage's return draws
+   * one settled frame.
+   */
+  /** The canvas shows an older cut than the state: draw once when the stage is back. */
+  let stale = false;
+  function snap() {
+    if (cur !== goal || tilt.x !== tiltGoal.x || tilt.y !== tiltGoal.y) stale = true;
+    cur = goal;
+    tilt.x = tiltGoal.x;
+    tilt.y = tiltGoal.y;
+  }
+
+  /** Read at a scroll event or in a frame, when layout is already clean: no forced reflow. */
+  function inView() {
+    const r = stage.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }
+
   function request() {
     if (raf || disposed) return;
+    if (!inView()) return snap();
     last = performance.now();
     raf = requestAnimationFrame(step);
   }
+
+  // Back on screen after a snap: one settled frame at the current cut.
+  const visibility = new IntersectionObserver((entries) => {
+    if (stale && entries.some((e) => e.isIntersecting)) {
+      stale = false;
+      request();
+    }
+  });
 
   /* ---------------------------------------------------------- first frame --- */
 
@@ -433,6 +464,7 @@ export async function createXray(input: XrayInput): Promise<Xray> {
     }
   });
   observer.observe(stage);
+  visibility.observe(stage);
 
   const lost = (event: Event) => {
     event.preventDefault();
@@ -461,6 +493,7 @@ export async function createXray(input: XrayInput): Promise<Xray> {
       disposed = true;
       if (raf) cancelAnimationFrame(raf);
       observer.disconnect();
+      visibility.disconnect();
       canvas.removeEventListener("webglcontextlost", lost);
       geometries.forEach((g) => g.dispose());
       shadowGeometry.dispose();

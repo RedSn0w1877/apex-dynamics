@@ -80,37 +80,51 @@ def group_of(name):
 
 # ------------------------------------------------------------------------- layers ---
 
-def clamp_to_profile(o, layer):
+def clamp_to_profile(o, layer, R=None):
     """Decimating the carrier to 1500 tris lets its surfaces wander more than the 0.3 mm gap,
     into the plate (BVH overlap found 327 triangle pairs). Re-assert the gap analytically from
     shoe-spec's own profile, per vertex: the carrier's top sits >= 0.45 mm under the plate,
     the fork key's walls stay >= 0.5 mm inside the slot (0.3 mm gap + 0.2 mm), the plate's
     slot walls stay on the nominal slot, and its underside on or above the carrier top.
-    (Scene units: 0.001 = 0.1 mm.) Topology is untouched, so the manifold assertion still holds."""
+    (Scene units: 0.001 = 0.1 mm.) Topology is untouched, so the manifold assertion still holds.
+    With the sculpt (R), each vertex is taken back to the unsculpted shape, clamped against the
+    profile there and sculpted again: the map is one-to-one, so the gaps it keeps are kept."""
     if layer not in ("carrier", "plate"):
         return 0
     P = META["profile"]; n = P["n"] - 1; L = META["SHOE_LENGTH"]
     ct, kh, sh = P["carrierTop"], P["keyHalf"], P["slotHalf"]
     moved = 0
     for v in o.data.vertices:
+        if R:
+            before = moved
+            q = unsculpt_point(Vector(v.co), R)
+            orig = v.co.copy(); v.co = q
         x, by, bz = v.co
-        u = min(1.0, max(0.0, (x + L / 2) / L)); i = int(round(u * n))
-        top, key, slot = ct[i], kh[i], sh[i]
-        z3 = -by
-        if layer == "plate":
-            if bz < top + 0.0003:
-                v.co.z = top + 0.0003; moved += 1
-            if slot > 0.005 and abs(z3) < slot:
-                v.co.y = -math.copysign(slot, z3) if z3 != 0 else -slot; moved += 1
-            continue
-        in_key = key > 0 and abs(z3) < key + 0.004 and bz > top - 0.0015  # the key's walls rise above the carrier top
-        if in_key:
-            lim = key - 0.002
-            if abs(z3) > lim:
-                v.co.y = -math.copysign(lim, z3); moved += 1
-        elif bz > top - 0.0045:
-            v.co.z = top - 0.0045; moved += 1
+        moved += _clamp_vertex(v, x, by, bz, layer, L, n, ct, kh, sh)
+        if R:
+            v.co = sculpt_point(v.co, R) if moved > before else orig
     o.data.update()
+    return moved
+
+def _clamp_vertex(v, x, by, bz, layer, L, n, ct, kh, sh):
+    """One vertex against the profile at its own u; returns how many moves it took."""
+    moved = 0
+    u = min(1.0, max(0.0, (x + L / 2) / L)); i = int(round(u * n))
+    top, key, slot = ct[i], kh[i], sh[i]
+    z3 = -by
+    if layer == "plate":
+        if bz < top + 0.0003:
+            v.co.z = top + 0.0003; moved += 1
+        if slot > 0.005 and abs(z3) < slot:
+            v.co.y = -math.copysign(slot, z3) if z3 != 0 else -slot; moved += 1
+        return moved
+    in_key = key > 0 and abs(z3) < key + 0.004 and bz > top - 0.0015  # the key's walls rise above the carrier top
+    if in_key:
+        lim = key - 0.002
+        if abs(z3) > lim:
+            v.co.y = -math.copysign(lim, z3); moved += 1
+    elif bz > top - 0.0045:
+        v.co.z = top - 0.0045; moved += 1
     return moved
 
 def stage_layers():
@@ -144,6 +158,17 @@ def stage_layers():
     for o in hi.objects:
         for p in o.data.polygons:
             p.use_smooth = True
+    # The racing-shoe sculpt (toe spring, rounded toe, heel bevel and rake, taller tongue), once,
+    # here, so the hero, the x-ray pack and poster, the cuts and the wind still are one shoe.
+    # The hi parts take it now; the tongue part before the upper is joined; each low layer after
+    # its gap clamp (the clamp reads shoe-spec's unsculpted profile). --sculpt 0 turns it off.
+    SCULPT = None
+    if OPTS.get("sculpt", "1") != "0":
+        SCULPT = sculpt_ref(list(hi.objects))
+        sculpt_tongue(bpy.data.objects["hi_tongue"], SCULPT); sculpt_tongue(parts["tongue"], SCULPT)
+        for o in hi.objects:
+            sculpt_object(o, SCULPT)
+        bpy.context.scene["sculpt"] = json.dumps(SCULPT)
 
     TARGET = {"outsole": 6000, "carrier": 1500, "plate": 1000, "foam": 4000, "upper": 9000}
     VOX = {"outsole": 0.005, "carrier": 0.005, "plate": 0.003, "foam": 0.005, "upper": 0.004}
@@ -167,10 +192,14 @@ def stage_layers():
         r = o.modifiers.new("remesh", "REMESH"); r.mode = "VOXEL"; r.voxel_size = VOX[layer]; r.adaptivity = 0
         apply_all(o)
         remeshed = tris(o)
+        if SCULPT:
+            # On the dense voxel mesh, before decimating: long decimated triangles would cut the
+            # sculpt's curves as chords and close the 0.3 mm gaps.
+            sculpt_object(o, SCULPT)
         d = o.modifiers.new("decimate", "DECIMATE"); d.decimate_type = "COLLAPSE"
         d.ratio = min(1.0, TARGET[layer] / max(remeshed, 1)); d.use_collapse_triangulate = True
         apply_all(o)
-        moved = clamp_to_profile(o, layer)
+        moved = clamp_to_profile(o, layer, SCULPT)
         t = o.modifiers.new("tri", "TRIANGULATE"); apply_all(o)
         if moved:
             log("clamped", moved, "vertices of", layer, "to keep the carrier-plate gap")
@@ -318,6 +347,8 @@ def material_for(part):
 def open_layers():
     bpy.ops.wm.open_mainfile(filepath=os.path.join(WORK, "layers.blend"))
     MATS.clear()  # opening a file frees every material made before it
+    if not stored_sculpt():  # read after opening: before it, the scene is the empty factory one
+        log("WARN layers.blend is unsculpted: only the hero gets the sculpt (re-run the layers stage)")
     M = materials()
     his = [o for o in bpy.data.objects if o.name.startswith("hi_")]
     for o in his:
@@ -344,6 +375,9 @@ def deboss_badge(mirror=False):
     txt.matrix_world = Matrix.Translation(Vector(B["centre"])) @ rot
     activate(txt); bpy.ops.object.convert(target="MESH")
     txt = bpy.context.active_object
+    R = stored_sculpt()
+    if R:  # the badge moved with the sculpt: move the letters with it
+        sculpt_object(txt, R)
     txt.data.materials.clear(); txt.data.materials.append(M["letters"])
     if mirror:
         # Mirrored about its own reading axis, the winding flips: recalc so the solid points outward.
@@ -577,60 +611,108 @@ def frame_hero(his, w, h):
     bpy.context.scene.camera = cam
     return cam
 
-def hero_sculpt(his):
-    """Hero-only shaping of the hi parts, so the launch still reads as a racing shoe and not a
-    block: toe spring, a rounded toe, a heel bevel and a taller tongue. Every move is monotonic
-    in z for a given x (a shear, a squash toward a centre line, a fading lift), so stacked layers
-    keep their order and their 0.3 mm gaps never close. The x-ray pack, poster, cuts and wind
-    still keep the unsculpted geometry. Options: --spring --toe --bevel --tongue (in units, 1 = 100 mm;
-    --toe is the squash left at the tip, 0..1)."""
-    spring = float(OPTS.get("spring", 0.17)); tip = float(OPTS.get("toe", 0.34))
-    bevel = float(OPTS.get("bevel", 0.15)); tongue_lift = float(OPTS.get("tongue", 0.14))
+def _ss(a, b, v):
+    t = min(1.0, max(0.0, (v - a) / (b - a))); return t * t * (3 - 2 * t)
+
+def sculpt_ref(his):
+    """The sculpt's frame, measured once from the unsculpted hi parts: the shoe's x span, its
+    lowest point, the toe's top and the heel's top. layers stores it in the .blend (scene
+    'sculpt') so every later stage, and src/lib/shoe-spec.ts (SCULPT), use the same numbers."""
     pts = [o.matrix_world @ v.co for o in his for v in o.data.vertices]
     x0 = min(p.x for p in pts); x1 = max(p.x for p in pts); L = x1 - x0
     zmin = min(p.z for p in pts)
     toe_top = max((p.z for p in pts if (p.x - x0) / L > 0.84), default=zmin + 0.5)
-    zc = zmin + 0.4 * (toe_top - zmin)  # the toe squashes toward this line: the nose sits low, as on a racer
-    log("SCULPT x", round(x0, 3), "..", round(x1, 3), "zmin", round(zmin, 3), "toe top", round(toe_top, 3), "zc", round(zc, 3))
+    heel_top = max((p.z for p in pts if (p.x - x0) / L < 0.06), default=zmin + 0.9)
+    R = {"x0": x0, "L": L, "zmin": zmin, "toe_top": toe_top, "heel_top": heel_top,
+         "zc": zmin + 0.4 * (toe_top - zmin),  # the toe squashes toward this line: the nose sits low, as on a racer
+         "spring": float(OPTS.get("spring", 0.17)), "tip": float(OPTS.get("toe", 0.34)),
+         "bevel": float(OPTS.get("bevel", 0.15)), "tongue": float(OPTS.get("tongue", 0.14)),
+         "rake": float(OPTS.get("rake", 0.08)), "bulge": float(OPTS.get("bulge", 0.08)),
+         "flare": float(OPTS.get("flare", 0.05))}
+    log("SCULPT", json.dumps({k: round(v, 4) for k, v in R.items()}))
+    return R
 
-    def ss(a, b, v):
-        t = min(1.0, max(0.0, (v - a) / (b - a))); return t * t * (3 - 2 * t)
+def sculpt_point(p, R):
+    """The racing-shoe shape, as one map of world space: toe spring, a rounded toe, a heel
+    bevel and a raked heel. z moves monotonically for a given x and x monotonically for a given
+    z (the Jacobian stays positive for these strengths), so the map is one-to-one: stacked layers
+    keep their order and disjoint layers stay disjoint."""
+    x0, L, zmin = R["x0"], R["L"], R["zmin"]
+    t = (p.x - x0) / L; z = p.z; x = p.x
+    # Rounded toe: an elliptic squash toward zc over the last 16 % of the length.
+    if t > 0.84:
+        e = min(1.0, (t - 0.84) / 0.16)
+        s = R["tip"] + (1 - R["tip"]) * math.sqrt(max(0.0, 1 - e * e))
+        z = R["zc"] + (z - R["zc"]) * s
+    # Heel bevel: the sole's back edge lifts, fading out 60 mm up so the upper is untouched.
+    if t < 0.13:
+        b = R["bevel"] * ((0.13 - max(t, 0.0)) / 0.13) ** 2
+        z += b * max(0.0, 1 - (p.z - zmin) / 0.6)
+    # Heel shape: the back of the heel is a curve, not a sliced wall. The sole's back edge tucks
+    # forward (with the bevel, a rounded heel), the counter bulges back round the heel bone and
+    # the collar flares back over the Achilles. Spread over the rear 20 % so the map stays
+    # one-to-one (its Jacobian stays above 0.3 where this meets the bevel).
+    if t < 0.2:
+        w = (1 - max(t, 0.0) / 0.2) ** 2
+        h = (p.z - zmin) / max(1e-6, R["heel_top"] - zmin)
+        x += w * (R["rake"] * (1 - _ss(0.0, 0.35, h)) - R["bulge"] * math.exp(-(((h - 0.55) / 0.3) ** 2))
+                  - R["flare"] * _ss(0.8, 1.0, h))
+    # Toe spring: the whole forefoot rises toward the tip.
+    z += R["spring"] * _ss(0.58, 1.0, t) ** 1.6
+    return Vector((x, p.y, z))
 
-    # Tongue: stretch its back end upward from its own floor, so it stands proud of the collar.
+def unsculpt_point(q, R, steps=40):
+    """The sculpt's inverse by fixed-point iteration (the map stays close to the identity:
+    every partial derivative is within 0.66 of it, so this converges)."""
+    p = Vector(q)
+    for _ in range(steps):
+        f = sculpt_point(p, R)
+        d = q - f
+        p = p + d
+        if d.length < 1e-7:
+            break
+    return p
+
+def sculpt_object(o, R):
+    if o.data.users > 1:
+        o.data = o.data.copy()  # never sculpt a shared mesh twice
+    mw = o.matrix_world; mi = mw.inverted()
+    for v in o.data.vertices:
+        v.co = mi @ sculpt_point(mw @ v.co, R)
+    o.data.update()
+
+def sculpt_tongue(tongue, R):
+    """Stretch the tongue's back end upward from its own floor, so it stands proud of the collar."""
+    tw = tongue.matrix_world; ti = tw.inverted()
+    tx = [(tw @ v.co) for v in tongue.data.vertices]
+    tx0 = min(p.x for p in tx); tx1 = max(p.x for p in tx)
+    bins = {}
+    for p in tx:
+        k = int((p.x - tx0) / max(1e-6, tx1 - tx0) * 24)
+        lo, hi = bins.get(k, (p.z, p.z)); bins[k] = (min(lo, p.z), max(hi, p.z))
+    for v, p in zip(tongue.data.vertices, tx):
+        k = int((p.x - tx0) / max(1e-6, tx1 - tx0) * 24); lo, hi = bins[k]
+        w = (p.z - lo) / max(1e-6, hi - lo)
+        lift = R["tongue"] * (1 - _ss(0.0, 0.32, (p.x - tx0) / max(1e-6, tx1 - tx0))) * w
+        v.co = ti @ Vector((p.x - 0.35 * lift, p.y, p.z + lift))  # leans back toward the ankle
+    tongue.data.update()
+
+def stored_sculpt():
+    s = bpy.context.scene.get("sculpt")
+    return json.loads(s) if s else None
+
+def hero_sculpt(his):
+    """Draft path only: sculpt an unsculpted layers.blend at render time. Since the layers stage
+    sculpts the parts itself (hi and low), a current layers.blend is already shaped and this is
+    skipped. Options: --spring --toe --bevel --tongue --rake --bulge --flare (units, 1 = 100 mm; --toe is the
+    squash left at the tip, 0..1)."""
+    R = sculpt_ref(his)
     tongue = next((o for o in his if o["part"] == "tongue"), None)
     if tongue:
-        tw = tongue.matrix_world; ti = tw.inverted()
-        tx = [(tw @ v.co) for v in tongue.data.vertices]
-        tx0 = min(p.x for p in tx); tx1 = max(p.x for p in tx)
-        bins = {}
-        for p in tx:
-            k = int((p.x - tx0) / max(1e-6, tx1 - tx0) * 24)
-            lo, hi = bins.get(k, (p.z, p.z)); bins[k] = (min(lo, p.z), max(hi, p.z))
-        for v, p in zip(tongue.data.vertices, tx):
-            k = int((p.x - tx0) / max(1e-6, tx1 - tx0) * 24); lo, hi = bins[k]
-            w = (p.z - lo) / max(1e-6, hi - lo)
-            lift = tongue_lift * (1 - ss(0.0, 0.32, (p.x - tx0) / max(1e-6, tx1 - tx0))) * w
-            v.co = ti @ Vector((p.x - 0.35 * lift, p.y, p.z + lift))  # leans back toward the ankle
-
+        sculpt_tongue(tongue, R)
     for o in his:
-        if o.data.users > 1:
-            o.data = o.data.copy()  # never sculpt a shared mesh twice
-        mw = o.matrix_world; mi = mw.inverted()
-        for v in o.data.vertices:
-            p = mw @ v.co; t = (p.x - x0) / L; z = p.z
-            # Rounded toe: an elliptic squash toward zc over the last 16 % of the length.
-            if t > 0.84:
-                e = (t - 0.84) / 0.16
-                s = tip + (1 - tip) * math.sqrt(max(0.0, 1 - e * e))
-                z = zc + (z - zc) * s
-            # Heel bevel: the sole's back edge lifts, fading out 60 mm up so the upper is untouched.
-            if t < 0.13:
-                b = bevel * ((0.13 - t) / 0.13) ** 2
-                z += b * max(0.0, 1 - (z - zmin) / 0.6)
-            # Toe spring: the whole forefoot rises toward the tip.
-            z += spring * ss(0.58, 1.0, t) ** 1.6
-            v.co = mi @ Vector((p.x, p.y, z))
-        o.data.update()
+        sculpt_object(o, R)
+    return R
 
 def stage_stills():
     what = (OPTS.get("what") or "hero,inside,cuts,wind").split(",")
@@ -639,7 +721,7 @@ def stage_stills():
     R = lambda w, h: (max(16, int(w * k)), max(16, int(h * k)))
     if "hero" in what:
         his = open_layers(); deboss_badge(False); _prep_hi_scene()
-        if OPTS.get("sculpt", "1") != "0":
+        if OPTS.get("sculpt", "1") != "0" and not stored_sculpt():
             hero_sculpt(his)
         setup_cycles(spp, *R(1800, 900)); world("#000000", 0.0)
         # A softer, wider volt rim than the x-ray stills: a glow along the toe, not a hot edge.

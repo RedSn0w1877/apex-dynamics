@@ -147,13 +147,36 @@ export const CUT_STATIONS: readonly CutStation[] = [
 /** Cut plane position along x for a cut at u. */
 export const cutX = (u: number) => xAt(u);
 
+/* ------------------------------------------------------------- the sculpt --- */
+
+/**
+ * The racing-shoe sculpt the Blender layers stage applies to every part (hi and low), so the
+ * hero, the x-ray pack and poster, the cuts and the wind still are one shoe: toe spring, a
+ * rounded toe, a heel bevel and a raked heel (tools/assets/proto04.py, sculpt_point). The frame
+ * (x0, L, zmin, toe top) is what that stage measured from the unsculpted parts and logs as
+ * SCULPT; x0 and L land exactly on this file's own axis, so its t is this file's u.
+ */
+export const SCULPT = { zmin: -0.03, zc: 0.2296, spring: 0.17, tip: 0.34, bevel: 0.15 } as const;
+
+/** Height y at u after the sculpt (three's y is Blender's z; x moves only in the heel's rake). */
+export function sculptY(u: number, y: number) {
+  const { zmin, zc, spring, tip, bevel } = SCULPT;
+  let z = y;
+  if (u > 0.84) {
+    const e = Math.min(1, (u - 0.84) / 0.16);
+    z = zc + (z - zc) * (tip + (1 - tip) * Math.sqrt(Math.max(0, 1 - e * e)));
+  }
+  if (u < 0.13) z += bevel * ((0.13 - Math.max(u, 0)) / 0.13) ** 2 * Math.max(0, 1 - (y - zmin) / 0.6);
+  return z + spring * smoothstep(0.58, 1, u) ** 1.6;
+}
+
 /**
  * Where a layer's callout pins at a cut: on the cut face, half way up the
- * layer's section, on the lateral side (+z, the side facing both cameras).
+ * layer's section (as sculpted), on the lateral side (+z, the side facing both cameras).
  */
 export function layerAnchor(layer: LayerId, u: number): readonly [number, number, number] {
   const [bottom, top] = layerSpan(layer, u);
-  return [cutX(u), (bottom + top) / 2, 0.55 * halfWidth(u, false)];
+  return [cutX(u), sculptY(u, (bottom + top) / 2), 0.55 * halfWidth(u, false)];
 }
 
 /* ----------------------------------------------------------------- cameras --- */
@@ -173,8 +196,11 @@ export const CAMERA_LIVE: ShoeCamera = { fov: 24, pos: [-3.55, 1.5, 2.65], targe
  * The camera for the six 4:3 cut stills (Blender converts (x, y, z) to (x, -z, y)).
  * fov 28, not 22: at 22 the heel-side stations sat about 15 degrees off-axis against a 14.5
  * degree half-width, so station 1's cut face fell off the left edge of its still.
+ * 1.2x further back along the old view and aimed 20 mm nearer the heel than it was, so the whole
+ * shoe fits station 0's still: at the old distance the heel ran off the left edge, which on a
+ * phone (where the stills are the x-ray) read as a cropped product.
  */
-export const CAMERA_STILLS: ShoeCamera = { fov: 28, pos: [-3.2, 1.35, 2.35], target: [0.3, 0.34, 0], aspect: 4 / 3 };
+export const CAMERA_STILLS: ShoeCamera = { fov: 28, pos: [-4.1, 1.552, 2.82], target: [0.1, 0.34, 0], aspect: 4 / 3 };
 
 /* ------------------------------------------------------------------ sizing --- */
 

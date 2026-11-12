@@ -28,6 +28,7 @@ function Course() {
   const dot = useRef<HTMLSpanElement>(null);
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
+  const bib = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     if (!profile.current || !dot.current || !outer.current || !inner.current) return;
@@ -35,6 +36,33 @@ function Course() {
   }, []);
 
   useEffect(() => startAnchorGlide(), []);
+
+  /*
+   * One bib action per screen: the strip's tag steps aside while the hero's own bib button
+   * or the bib form itself is on screen (below the strip), and comes back once neither is.
+   * Without JS the tag simply stays (the hidden state lives under html.js).
+   */
+  useEffect(() => {
+    const tag = bib.current;
+    const targets = [document.querySelector('#start a[href="#bib"]'), document.getElementById("bib")].filter(
+      (el): el is Element => el !== null,
+    );
+    if (!tag || !targets.length) return;
+    const strip = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--strip")) || 56;
+    const showing = new Set<Element>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) showing.add(e.target);
+          else showing.delete(e.target);
+        }
+        tag.toggleAttribute("data-shown", showing.size === 0);
+      },
+      { rootMargin: `-${Math.round(strip)}px 0px 0px 0px` },
+    );
+    for (const t of targets) io.observe(t);
+    return () => io.disconnect();
+  }, []);
 
   return (
     <header className={styles.strip}>
@@ -79,7 +107,7 @@ function Course() {
         <p aria-hidden="true" className={`t-label ${styles.status}`}>
           {STATUS[stop]}
         </p>
-        <a href="#bib" className={`t-display ${styles.bib}`}>
+        <a ref={bib} href="#bib" className={`t-display ${styles.bib}`}>
           <span>Get your bib</span>
         </a>
       </nav>

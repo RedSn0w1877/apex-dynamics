@@ -483,11 +483,16 @@
 /* ------------------------------------------------------------------- phone --- */
 
 @media (max-width: 639px) {
-  /* One centred column: the cut still, the layer just cut, the cushion, then the tally and the slider. */
+  /* The shoe follows the copy straight away: no band of night between the paragraph and the still. */
+  .intro {
+    padding-bottom: 8px;
+  }
+
+  /* One column from the top: the cut still, the layer just cut, the cushion, then the tally and the slider. */
   .stage {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     padding-bottom: 12px;
   }
 
@@ -500,11 +505,22 @@
     scale: none;
   }
 
+  /*
+   * A taller frame than the 4:3 still, cropped (cover) from the heel side: the still's empty
+   * right-hand margin falls away and the whole shoe fills the phone's width. The negative
+   * margins take back the still's transparent top and bottom bands.
+   */
   .still {
     position: relative;
     inset: auto;
     flex: none;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1.08;
+    margin: -7vw 0 -9vw;
+  }
+
+  .still img {
+    object-fit: cover;
+    object-position: 0% 50%;
   }
 
   .hint,

@@ -7,6 +7,7 @@ import {
   cutX,
   halfWidth,
   layerAnchor,
+  sculptY,
   stackAtMm,
   upperBottom,
   upperHeight,
@@ -123,5 +124,5 @@ export function valueText(station: number, u: number): string {
  */
 export function calloutAnchor(id: LayerId, u: number): Vec3 {
   if (id !== "upper") return layerAnchor(id, u);
-  return [cutX(u), upperBottom(u) + upperHeight(u) * 0.32, 0.93 * halfWidth(u, false)];
+  return [cutX(u), sculptY(u, upperBottom(u) + upperHeight(u) * 0.32), 0.93 * halfWidth(u, false)];
 }

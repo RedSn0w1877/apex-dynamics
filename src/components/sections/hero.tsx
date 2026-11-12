@@ -16,9 +16,10 @@ import styles from "./hero.module.css";
 
 /*
  * The start line: a night-race poster standing on the course. The 30 km profile
- * is the ground of the screen: the 218 stands on its first summit, the plain
- * sentence and the stats on its second, the shoe runs across the valley, and
- * the START flag at km 0 is the way in.
+ * is the ground of the screen. Down the left, one column of facts read in order:
+ * the 218 G, the plain sentence that finishes it, the three stats, the weight by
+ * part. The bib and what it does stand on the profile's second summit, the shoe
+ * runs across the valley, and the START flag at km 0 is the way in.
  *
  * Everything is server-rendered and visible without JS. Entrances are CSS only
  * (transform, never opacity) and run only under html.js with no motion
@@ -73,43 +74,15 @@ export function Hero() {
       </div>
 
       {/*
-        The 218, weighed part by part: the same five layers #inside cuts open. One aria-hidden
-        row styled by element (b = the part, i = the operator), so its markup stays small; the
-        spoken version is the line above it. On load the terms roll up left to right.
+        Under the numeral, one column read top to bottom: the plain sentence (the number said
+        once more in words, so it is never a caps fragment on its own), the three figures, then
+        the 218 weighed part by part, the same five layers #inside cuts open. The weigh-in is one
+        aria-hidden row styled by element (b = the part, i = the operator), so its markup stays
+        small; the spoken version is the line above it. On load the terms roll up left to right.
       */}
-      <div className={styles.parts}>
-        <p className="vh">{PARTS_SPOKEN}</p>
-        <p aria-hidden="true" className={`t-label ${styles.partsRow}`}>
-          {PARTS.map((part, i) => (
-            <Fragment key={part.id}>
-              {i > 0 && <i>+</i>}
-              <span style={{ "--i": i } as CSSProperties}>
-                <RaceDigits value={part.grams} format="00" silent className={styles.partNum} />
-                <b>{part.id}</b>
-              </span>
-            </Fragment>
-          ))}
-          <i>=</i>
-          <span style={{ "--i": PARTS.length } as CSSProperties}>
-            <span className={styles.partNum}>
-              <RaceDigits value={SHOE_TOTAL_GRAMS} format="000" silent />
-              {" G"}
-            </span>
-            <b>{`at EU ${SHOE.baseSizeEu}`}</b>
-          </span>
-        </p>
-      </div>
-
-      {/*
-        The plain sentence finishes the giant number ("218 G … with a carbon plate and 3 mm
-        lugs"), so the weight is said once, big, and not three times. Then the three figures,
-        and the old slogan, demoted to one quiet line under them.
-      */}
-      <div className={styles.claim}>
+      <div className={styles.facts}>
         <p className={`t-display ${styles.plain}`}>
-          <span className="vh">{`${SHOE.weightG} grams `}</span>
-          {/* Non-breaking space keeps the number with its unit. */}
-          {`with a carbon plate and ${SHOE.lugMm} mm lugs.`}
+          {`${SHOE.weightG} g, with a carbon plate and ${SHOE.lugMm} mm lugs.`}
         </p>
         <ul className={styles.figs}>
           {FIGURES.map((fig) => (
@@ -119,9 +92,28 @@ export function Hero() {
             </li>
           ))}
         </ul>
-        <p className={`t-label ${styles.tag}`}>
-          <span className="vh">218 </span>Grams between you and the mountain.
-        </p>
+        <div className={styles.parts}>
+          <p className="vh">{PARTS_SPOKEN}</p>
+          <p aria-hidden="true" className={`t-label ${styles.partsRow}`}>
+            {PARTS.map((part, i) => (
+              <Fragment key={part.id}>
+                {i > 0 && <i>+</i>}
+                <span style={{ "--i": i } as CSSProperties}>
+                  <RaceDigits value={part.grams} format="00" silent className={styles.partNum} />
+                  <b>{part.id}</b>
+                </span>
+              </Fragment>
+            ))}
+            <i>=</i>
+            <span style={{ "--i": PARTS.length } as CSSProperties}>
+              <span className={styles.partNum}>
+                <RaceDigits value={SHOE_TOTAL_GRAMS} format="000" silent />
+                {" G"}
+              </span>
+              <b>{`at EU ${SHOE.baseSizeEu}`}</b>
+            </span>
+          </p>
+        </div>
       </div>
 
       <picture className={styles.shoe} data-par="shoe">
@@ -147,6 +139,10 @@ export function Hero() {
         <p id="bib-what" className={styles.what}>
           <strong>Not on sale yet.</strong> Prototype 04 is in field testing: pin on a bib and we&apos;ll send you a pair
           to run in. Expected price at launch: $250.
+        </p>
+        {/* The old slogan, demoted: one quiet line, away from the facts. */}
+        <p className={`t-label ${styles.tag}`}>
+          <span className="vh">218 </span>Grams between you and the mountain.
         </p>
       </div>
 

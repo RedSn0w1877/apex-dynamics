@@ -3,24 +3,25 @@
 /*
  * Desktop: an absolute composition in vw/svh, standing on the course profile.
  *
- *   --num       the numerals; capped by the viewport height so the left stack
- *               (h1, 218, the parts, the bib, the flag) always fits one screen
+ *   --num       the numerals; capped by the viewport height so the left column
+ *               (h1, 218, the plain sentence, the figures, the parts, the flag)
+ *               always fits one screen
  *   --ridge-h   the profile's box, from --ground; the numerals stand on its km 7
- *               summit and the claim column on its km 21 summit (y = 4.35%)
+ *               summit and the bib and its note on its km 21 summit (y = 4.35%)
  *   --ground    night kept under the profile, so the flag and the fine print never
  *               crowd the fold (24 px on desktop)
- *   --shoe-w    the still is 2:1, the shoe fills x 16.6–84.6% and y 18.8–71.7% of it
- *               (the heel, x 16.6–32%, tops out at 21.9%; only the tongue, well right of
+ *   --shoe-w    the still is 2:1, the shoe fills x 15.0–84.6% and y 18.8–71.6% of it
+ *               (the heel, x 15.0–32%, tops out at 22.0%; only the tongue, well right of
  *               the G, rises to 18.8%). On desktop it is up to a full screen wide, capped
  *               so the lugs stay above the ground, with the heel just right of the bib's
  *               note and the G, so the toe runs off the right edge. The heel collar starts
  *               below the G's baseline, so the shoe never reaches the G (the G also sits
  *               on a layer in front of it)
  *
- * One type ladder for the whole screen: the numeral, the plain sentence, --h1 (the
- * headline and the three figures), --part (the weigh-in), --step-s (the bib, the flag,
- * the slogan, the operators), --body-s (the note and the figure labels) and --fine
- * (names and meta). The G is part of the numeral.
+ * One type ladder for the whole screen: the numeral, --plain (the sentence that finishes
+ * it), --h1 (the headline and the three figures), --part (the weigh-in), --step-s (the
+ * bib, the flag, the slogan, the operators), --body-s (the note and the figure labels)
+ * and --fine (names and meta). The G is part of the numeral.
  */
 .hero {
   --h1: clamp(1.375rem, 0.9rem + 1.9vw, 2.75rem);
@@ -28,7 +29,9 @@
   --step-s: clamp(20px, 1.05vw, 27px);
   --body-s: clamp(15px, 0.8vw, 20px);
   --fine: clamp(13px, 0.7vw, 17px);
-  --num: clamp(9rem, min(30vw, (100svh - 29rem) * 1.2), 52rem);
+  --plain: clamp(2rem, 3vw, 3.75rem);
+  /* The facts column under the numeral costs about 25rem of height, so the numeral gives way to it. */
+  --num: clamp(9rem, min(30vw, (100svh - 25rem) * 0.76), 52rem);
   --num-top: calc(var(--strip) + 28px + 2.3 * var(--h1) + 2svh);
   --num-end: calc(var(--num-top) + 0.82 * var(--num));
   --g-base: calc(var(--num-top) + 0.71 * var(--num));
@@ -37,7 +40,8 @@
   --ridge-h: clamp(220px, 100svh - 26rem, 860px);
   --summit: calc(var(--ridge-h) * 0.9565);
   --km0: calc(var(--ridge-h) * 0.0435);
-  --parts-end: calc(var(--num-end) + 14px + 0.82 * var(--part) + 18px);
+  /* Where the shoe's heel starts: the facts column ends a gutter short of it. */
+  --heel-x: max(36.5vw, 500px);
   --shoe-w: min(100vw, (var(--hero-h) - var(--ground) - var(--g-base)) / 0.26);
   --shoe-top: calc(var(--g-base) - 0.105 * var(--shoe-w));
   position: relative;
@@ -138,15 +142,61 @@
 }
 
 /*
- * The weigh-in under the 218: five parts and their sum, as a race-sheet line. One row,
- * styled by element: span = a part (its number over its name), b = the name, i = the
- * operator. The numbers are RaceDigits, so they can roll up on load.
+ * The facts column under the numeral, read top to bottom: the plain sentence, the three
+ * figures, the weigh-in. It ends a gutter short of the shoe's heel.
  */
-.parts {
+.facts {
   position: absolute;
   z-index: 3;
   left: var(--edge);
-  top: calc(var(--num-end) + 14px);
+  top: calc(var(--num-end) + 18px);
+  width: calc(var(--heel-x) - var(--edge) - 28px);
+}
+
+/* The number said once more, in words, as one sentence: the first and biggest thing after it. */
+.plain {
+  margin: 0;
+  font-size: var(--plain);
+  color: var(--chalk);
+  text-wrap: balance;
+}
+
+.figs {
+  display: flex;
+  gap: clamp(24px, 2.6vw, 52px);
+  margin: clamp(14px, 1.4vw, 24px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fig {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The figures share the headline's step: they support the sentence, they don't outrank it. */
+.figNum {
+  font-size: var(--h1);
+  white-space: nowrap;
+  color: var(--chalk);
+}
+
+.figLabel {
+  max-width: 14ch;
+  font-size: var(--body-s);
+  line-height: 1.2;
+  color: var(--dust);
+}
+
+/*
+ * The weigh-in: five parts and their sum, as a race-sheet line. One row, styled by
+ * element: span = a part (its number over its name), b = the name, i = the operator.
+ * The numbers are RaceDigits, so they can roll up on load.
+ */
+.parts {
+  margin-top: clamp(16px, 1.6vw, 26px);
 }
 
 .partsRow {
@@ -189,15 +239,20 @@
   white-space: nowrap;
 }
 
-/* The bib, and what pinning one on actually does, in plain words beside it. */
+/*
+ * The bib, and what pinning one on actually does, in plain words beside it, standing on the
+ * km 21 summit. The note drops under the bib where the column is too narrow for both.
+ */
 .cta {
   position: absolute;
   z-index: 3;
-  left: var(--edge);
-  top: calc(var(--parts-end) + 36px);
+  right: var(--edge);
+  bottom: calc(var(--summit) + var(--ground) + 28px);
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 20px;
+  gap: 14px 20px;
+  width: min(34vw, 640px);
 }
 
 .bib {
@@ -230,6 +285,7 @@
 
 /* The note sits on a night underlay, so the course line never runs through the price. */
 .what {
+  flex: 1 1 22ch;
   max-width: 31ch;
   margin: 0;
   text-wrap: pretty;
@@ -290,55 +346,10 @@
   white-space: nowrap;
 }
 
-/* ------------------------------------------------------------ right column --- */
-
-/* The plain sentence, its numbers and the slogan stand on the km 21 summit. */
-.claim {
-  position: absolute;
-  z-index: 3;
-  right: var(--edge);
-  bottom: calc(var(--summit) + var(--ground) + 28px);
-  width: min(34vw, 780px);
-}
-
-.plain {
-  margin: 0;
-  font-size: clamp(2.25rem, 4vw, 4.5rem);
-  color: var(--chalk);
-}
-
-.figs {
-  display: flex;
-  gap: clamp(24px, 2.6vw, 52px);
-  margin: clamp(18px, 2.2vw, 32px) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.fig {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-/* The figures share the headline's step: they support the sentence, they don't outrank it. */
-.figNum {
-  font-size: var(--h1);
-  white-space: nowrap;
-  color: var(--chalk);
-}
-
-.figLabel {
-  max-width: 13ch;
-  font-size: var(--body-s);
-  line-height: 1.2;
-  color: var(--dust);
-}
-
-/* The old slogan, demoted: one quiet line under the figures it sums up. */
+/* The old slogan, demoted: one quiet line under the bib's note. */
 .tag {
-  margin: clamp(16px, 1.6vw, 26px) 0 0;
+  flex-basis: 100%;
+  margin: clamp(2px, 0.4vw, 8px) 0 0;
   font-size: var(--step-s);
   line-height: 1.2;
   color: var(--dust);
@@ -368,7 +379,7 @@
 .shoe {
   position: absolute;
   z-index: 2;
-  left: calc(max(36.5vw, 500px) - 0.166 * var(--shoe-w));
+  left: calc(var(--heel-x) - 0.15 * var(--shoe-w));
   top: var(--shoe-top);
   width: var(--shoe-w);
 }
@@ -379,74 +390,31 @@
   height: auto;
 }
 
-/* ------------------------------------------------------------------ tablet --- */
+/* ----------------------------------------------------------- tablet, phone --- */
 
 /*
- * Also what HVNF's Work carousel shows: it renders the demo in a ~708 px window.
- * The claim moves beside the numerals, the shoe drops under the weigh-in, and the
- * bib sits under the shoe. A full screen tall, so the next checkpoint's rule never
- * lands sliced by the fold.
+ * One column, in reading order: the headline, the 218, the plain sentence and its
+ * figures, the weigh-in, the shoe standing on the course, then the bib and the price,
+ * all on the first screen at 390 x 844; the slogan and the START line follow. A tablet
+ * (also what HVNF's Work carousel shows, in a ~708 px window) is the same column with
+ * bigger type.
  */
-@media (min-width: 640px) and (max-width: 1023px) {
+@media (max-width: 1023px) {
   .hero {
     --num: 34vw;
+    --plain: clamp(2rem, 5vw, 3rem);
     --hero-h: max(100svh, 760px);
-    --ridge-h: calc(var(--hero-h) * 0.46);
-    --shoe-w: 70vw;
-    --shoe-top: calc(var(--parts-end) + 24px - 0.1 * var(--shoe-w));
-  }
-
-  .h1 {
-    max-width: min(88vw, 46ch);
-  }
-
-  .claim {
-    top: calc(var(--num-top) + 4px);
-    bottom: auto;
-    width: min(42vw, 520px);
-  }
-
-  .plain {
-    font-size: clamp(1.75rem, 4.4vw, 2.75rem);
-  }
-
-  .shoe {
-    left: 26vw;
-  }
-
-  .cta {
-    top: calc(var(--shoe-top) + 0.5 * var(--shoe-w) * 0.8);
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .what {
-    max-width: 38ch;
-  }
-}
-
-/* ------------------------------------------------------------------- phone --- */
-
-/*
- * One column, in reading order: the headline, the 218 and its weigh-in, the shoe
- * standing on the course, the plain sentence and its figures, then the bib and the
- * price, all on the first screen; the slogan and the START line follow. The claim
- * box dissolves (display: contents) so its pieces can take their own places.
- */
-@media (max-width: 639px) {
-  .hero {
-    --num: 54vw;
-    --part: 1.375rem;
-    --ridge-h: 150px;
+    --ridge-h: calc(var(--hero-h) * 0.3);
     display: flex;
     flex-direction: column;
     height: auto;
-    padding-bottom: 96px;
+    min-height: var(--hero-h);
+    padding-bottom: 104px;
   }
 
   .h1,
   .nums,
-  .parts,
+  .facts,
   .shoe,
   .cta {
     position: relative;
@@ -455,93 +423,39 @@
 
   .h1 {
     min-height: 2lh;
-    max-width: none;
+    max-width: min(88vw, 46ch);
     margin: 18px var(--edge) 0;
   }
 
   .nums {
     flex: none;
-    margin: 10px 0 0 calc(var(--edge) - 0.04 * var(--num));
+    margin: 12px 0 0 calc(var(--edge) - 0.04 * var(--num));
   }
 
-  .parts {
-    margin: 10px var(--edge) 0;
-  }
-
-  .partsRow i {
-    padding: 0 0.32em;
-    font-size: 1rem;
-  }
-
-  .partsRow b {
-    font-size: 12px;
-  }
-
-  /* The still's transparent margins overlap the weigh-in above and the claim below; 12 px clear of the names. */
-  .shoe {
-    order: 1;
-    width: 112vw;
-    max-width: none;
-    margin: calc(12px - 11vw) 0 -13vw -9vw;
-    anchor-name: --shoe;
-  }
-
-  .claim {
-    display: contents;
-  }
-
-  .plain,
-  .figs,
-  .tag {
-    position: relative;
-    z-index: 3;
+  .facts {
+    width: auto;
+    margin: 14px var(--edge) 0;
   }
 
   .plain {
-    order: 2;
-    margin: 0 var(--edge);
-    font-size: clamp(1.875rem, 8.6vw, 2.5rem);
+    max-width: 22ch;
   }
 
-  .figs {
-    order: 2;
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    gap: 18px;
-    margin: 12px var(--edge) 0;
-  }
-
-  .figNum {
-    font-size: 34px;
-  }
-
-  .figLabel {
-    max-width: 16ch;
-    font-size: 13px;
+  /* The still's transparent margins overlap the weigh-in above and the bib below. */
+  .shoe {
+    width: 84vw;
+    max-width: none;
+    margin: calc(16px - 0.188 * 42vw) 0 calc(24px - 0.283 * 42vw) 8vw;
+    anchor-name: --shoe;
   }
 
   .cta {
-    order: 3;
-    flex-direction: column;
-    gap: 10px;
+    width: auto;
     margin: 18px var(--edge) 0;
   }
 
   .what {
-    font-size: 15px;
-    line-height: 1.35;
-    box-shadow: none;
-  }
-
-  .tag {
-    order: 4;
-    margin: 26px var(--edge) 0;
-    font-size: 1.25rem;
-  }
-
-  /* The topo's sky lines would cross the copy on a narrow screen: only the lines inside the fill stay. */
-  .ridge :global(.ridge-sky) {
-    display: none;
+    max-width: 38ch;
   }
 
   /*
@@ -553,14 +467,14 @@
     .ridge {
       z-index: 1;
       position-anchor: --shoe;
-      bottom: calc(anchor(bottom) + 13vw);
+      bottom: calc(anchor(bottom) + 0.283 * 42vw - 6px);
     }
   }
 
   /* The START line at the foot of the hero: the flag on a flat line out to the edge. */
   .start {
     left: calc(var(--edge) - 4px);
-    bottom: 28px;
+    bottom: 32px;
   }
 
   .start::before {
@@ -578,6 +492,94 @@
     left: var(--edge);
     bottom: 6px;
     padding: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .hero {
+    --num: 50vw;
+    --plain: clamp(1.75rem, 7.4vw, 2.25rem);
+    --part: 1.375rem;
+    --ridge-h: 150px;
+    min-height: 0;
+    padding-bottom: 96px;
+  }
+
+  .h1 {
+    max-width: none;
+  }
+
+  .nums {
+    margin-top: 8px;
+  }
+
+  .facts {
+    margin-top: 12px;
+  }
+
+  .figs {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 18px;
+    margin-top: 12px;
+  }
+
+  .figNum {
+    font-size: 34px;
+  }
+
+  .figLabel {
+    max-width: 16ch;
+    font-size: 13px;
+  }
+
+  .parts {
+    margin-top: 14px;
+  }
+
+  .partsRow i {
+    padding: 0 0.32em;
+    font-size: 1rem;
+  }
+
+  .partsRow b {
+    font-size: 12px;
+  }
+
+  /* 12 px clear of the weigh-in's names; the lugs stop just short of the bib. */
+  .shoe {
+    width: 112vw;
+    margin: calc(12px - 11vw) 0 -13vw -9vw;
+  }
+
+  .cta {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .what {
+    flex: none;
+    font-size: 15px;
+    line-height: 1.35;
+    box-shadow: none;
+  }
+
+  .tag {
+    margin-top: 16px;
+    font-size: 1.25rem;
+  }
+
+  /* The topo's sky lines would cross the copy on a narrow screen: only the lines inside the fill stay. */
+  .ridge :global(.ridge-sky) {
+    display: none;
+  }
+
+  @supports (anchor-name: --a) {
+    .ridge {
+      bottom: calc(anchor(bottom) + 13vw);
+    }
   }
 }
 
@@ -618,8 +620,8 @@
  *    300 ms  the volt runner leaves the flag (globals.css)
  *    520 ms  the shoe drives in from the left and settles onto the course
  *    580 ms  the 218 arrives at speed, leaning, and lands as the runner tops the km 7 summit
- *    760 ms  the weigh-in rolls up left to right, 60 ms apart, then "= 218 G"
- *    820 ms  the plain sentence, its figures and the slogan slide home
+ *    760 ms  the plain sentence and its figures slide home under it, then the slogan
+ *    900 ms  the weigh-in rolls up left to right, 60 ms apart, then "= 218 G"
  * Transform and clip only, never opacity: every word is in place on the first painted
  * frame (only the motion is staged), so the three-second read and the LCP image are
  * untouched. Only with JS, no motion preference and not on lite devices; elsewhere the
@@ -639,20 +641,20 @@
   }
 
   :global(html.js:not([data-lite])) .partsRow > span {
-    animation: part-in 320ms var(--ease-settle) calc(760ms + var(--i) * 60ms) backwards;
+    animation: part-in 320ms var(--ease-settle) calc(900ms + var(--i) * 60ms) backwards;
   }
 
   /* Each term's digits roll up from 0 as it arrives (the strip is the cell's ::before). */
   :global(html.js:not([data-lite])) .partsRow :global(.rd-c)::before {
-    animation: roll-up 360ms var(--ease-settle) calc(760ms + var(--i) * 60ms) backwards;
+    animation: roll-up 360ms var(--ease-settle) calc(900ms + var(--i) * 60ms) backwards;
   }
 
   :global(html.js:not([data-lite])) .plain {
-    animation: claim-in 520ms var(--ease-settle) 820ms backwards;
+    animation: claim-in 520ms var(--ease-settle) 760ms backwards;
   }
 
   :global(html.js:not([data-lite])) .figs {
-    animation: claim-in 520ms var(--ease-settle) 900ms backwards;
+    animation: claim-in 520ms var(--ease-settle) 840ms backwards;
   }
 
   :global(html.js:not([data-lite])) .tag {

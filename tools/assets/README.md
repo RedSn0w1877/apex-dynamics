@@ -35,10 +35,10 @@ for minutes, not the whole pipeline.
 
 Draft renders: `-- stills hero --spp 16 --scale 0.5 --tag -draft` writes
 `.work/still-hero-draft.png` and leaves the real one alone. Cuts take `--stations 1,4,5`.
-The hero framing takes `--dist --elev --yaw --roll --tx --tz`, its sculpt `--spring --toe --bevel
---tongue` (`--sculpt 0` turns it off) and its rim `--rim --rim-size --under`. The defaults keep the
-shoe inside x 16.6–84.6 % and y 18.8–71.7 % of the frame (the heel, x 16.6–32 %, tops out at
-21.9 %), which `hero.module.css` (`--shoe-w`, `--shoe-top`, `.shoe` left) is tuned to. If you change
+The hero framing takes `--dist --elev --yaw --roll --tx --tz` and its rim `--rim --rim-size --under`
+(the sculpt's options go to the layers stage). The defaults keep the
+shoe inside x 15.0–84.6 % and y 18.8–71.6 % of the frame (the heel, x 15.0–32 %, tops out at
+22.0 %), which `hero.module.css` (`--shoe-w`, `--shoe-top`, `.shoe` left) is tuned to. If you change
 them, re-measure the alpha box and re-run the hero layout check (`pw/hero-layout.js`).
 
 ## What each piece does
@@ -58,7 +58,20 @@ them, re-measure the alpha box and re-run the hero layout check (`pw/hero-layout
 - **`proto04.py`** (Blender 5.0):
   - **layers**: welds each part and points its normals outward. It solidifies the upper
     (1.4 mm) and the counter and toe cap (1.0 mm), then cuts the plate's fork (EXACT, plate
-    only). Each layer is joined, voxel remeshed (5 / 5 / 3 / 5 / 4 mm × 0.1), decimated to
+    only). The **sculpt** then shapes the whole shoe once, so the hero, the x-ray pack and
+    poster, the cuts and the wind still are one shoe: toe spring (17 mm), a rounded toe
+    (squashed toward a low centre line over the last 16 %), a heel bevel (15 mm), a heel that is
+    a curve rather than a sliced wall (the sole's back edge tucks 8 mm forward, the counter
+    bulges 8 mm back round the heel bone, the collar flares 5 mm), and a taller tongue. It is one
+    map of space (`sculpt_point`), one-to-one (its Jacobian stays above 0.3), so layers keep their
+    order and gaps. The hi parts take it directly; the tongue part before the upper is joined;
+    each low layer on its dense voxel mesh, before decimating (long decimated triangles would cut
+    its curves as chords and close the 0.3 mm gaps). The gap clamp then runs in unsculpted space
+    (`unsculpt_point`, clamp, sculpt again). The frame it measured is stored in the .blend
+    (scene `sculpt`) and logged as `SCULPT`; `src/lib/shoe-spec.ts` (`SCULPT`, `sculptY`) carries
+    the same numbers so the x-ray's pins land on the sculpted layers. `--sculpt 0` turns it off;
+    `--spring --toe --bevel --tongue --rake --bulge --flare` tune it.
+    Each layer is joined, voxel remeshed (5 / 5 / 3 / 5 / 4 mm × 0.1), decimated to
     6000 / 1500 / 1000 / 4000 / 9000 tris and triangulated, and the stage **asserts 0
     non-manifold and 0 boundary edges** (exit 1 otherwise). All five are unwrapped into one
     atlas (smart project 80°, pack with rotation), smoothed by angle 40° and exported as a plain
@@ -71,19 +84,16 @@ them, re-measure the alpha box and re-run the hero layout check (`pw/hero-layout
     contact shadow sized to the live ground quad (3.4 × 1.15).
   - **stills**: Cycles, 96 spp, OIDN, AgX.
     - hero: lateral, toe right, alpha; the camera 8° below the sole plane (the lugs read as
-      teeth), rolled −3°, no floor. Hero only, the hi parts are sculpted first (`hero_sculpt`):
-      toe spring (17 mm), a rounded toe (squashed toward a low centre line over the last 16 %),
-      a heel bevel (15 mm) and a taller tongue. Every move is monotonic in z for a given x, so
-      the layers keep their order and gaps. A softer, wider volt rim and a cool under-light.
-      The x-ray pack, poster, cuts and wind still keep the unsculpted shoe.
+      teeth), rolled −3°, no floor. A softer, wider volt rim and a cool under-light. (An old,
+      unsculpted layers.blend gets the sculpt here at render time, `hero_sculpt`, for drafts.)
     - inside: `CAMERA_LIVE`.
-    - cuts: `CAMERA_STILLS` at each station. Each hi part is cut by an EXACT box whose flat
+    - cuts: `CAMERA_STILLS` at each station (framed so the whole shoe fits station 0's still). Each hi part is cut by an EXACT box whose flat
       emission is the layer's cap colour, transferred to the cut faces. The boolean runs with
       self-intersection and hole tolerance on, because solidified shells fold over themselves
       at the collar and toe. Each cut is logged and checked (`CUT WARN` if the box survives).
     - wind: the mirrored left shoe, toe left, orthographic, plus its alpha mask.
     - The heel badge's `HVNF` deboss (0.4 mm, Blender's built-in font) is the studio
-      watermark. It is pre-mirrored for the wind still, so it still reads correctly.
+      watermark; its letters take the same sculpt as the badge. It is pre-mirrored for the wind still, so it still reads correctly.
 - **`pack-drc.mjs`**: draco3d 1.5.7 from the studio root, edgebreaker, speed 0/5, quantisation
   14/10/12. Pack format: `[u32 LE headerLen][JSON header][drc blobs]`. The header is
   `{ v, copyright, unit, layers: [{ name, offset, length, tris, verts, bbox }] }`, in stack order.
