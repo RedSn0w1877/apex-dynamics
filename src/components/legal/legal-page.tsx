@@ -1,40 +1,32 @@
 // © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute.
 
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
-import { SiteFooter } from "@/components/sections/site-footer";
+import { CourseStrip } from "@/components/course/course-strip";
+import { FinishLine } from "@/components/sections/finish-line";
+import styles from "./legal-page.module.css";
 
 export type LegalSection = { heading: string; body: ReactNode };
 
 export function LegalPage({ title, updated, sections }: { title: string; updated: string; sections: LegalSection[] }) {
   return (
     <>
-      <main className="mx-auto max-w-3xl px-5 pb-24 pt-12 md:px-10">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-chalk/60 transition-colors hover:text-chalk"
-        >
-          <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
-          Back to APEX DYNAMICS
-        </Link>
-        <h1 className="mt-10 font-display text-4xl italic font-black uppercase tracking-tighter text-chalk md:text-5xl">
-          {title}
-        </h1>
-        <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">Last updated {updated}</p>
-        <div className="mt-12 flex flex-col gap-10">
-          {sections.map((section, i) => (
-            <section key={section.heading} className="border-t border-gridline pt-6">
-              <h2 className="flex items-baseline gap-3 font-display text-lg italic font-bold uppercase tracking-tight text-chalk">
-                <span className="font-mono text-xs not-italic text-volt">{String(i + 1).padStart(2, "0")}</span>
-                {section.heading}
-              </h2>
-              <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-chalk/65">{section.body}</div>
+      <a href="#main" className="skip">
+        Skip to content
+      </a>
+      <CourseStrip variant="legal" />
+      <main id="main" className={styles.main}>
+        <h1 className={`t-label ${styles.h1}`}>{title}</h1>
+        <p className={`t-label ${styles.updated}`}>Last updated {updated}</p>
+        <div className={styles.sections}>
+          {sections.map((section) => (
+            <section key={section.heading}>
+              <h2 className={`t-label ${styles.h2}`}>{section.heading}</h2>
+              <div className={styles.body}>{section.body}</div>
             </section>
           ))}
         </div>
       </main>
-      <SiteFooter />
+      <FinishLine onHome={false} />
     </>
   );
 }

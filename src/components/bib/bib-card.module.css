@@ -1,0 +1,290 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+/*
+ * The bib is one printed object: the card is a size container and everything
+ * on it is in cqi (1cqi = 1% of the bib's width), so it scales as a whole, from
+ * a 92vw phone bib to a 560 px desktop one, and matches the 1200 × 1500 PNG.
+ */
+.card {
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 4 / 5;
+  border-radius: 4px;
+  background: var(--bib);
+  color: var(--bib-ink);
+  rotate: -3deg;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 32px 64px -28px rgb(0 0 0 / 0.9);
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 7cqi 4.5cqi;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* -------------------------------------------------------------- pin holes --- */
+
+.hole {
+  position: absolute;
+  z-index: 2;
+  top: 4.6cqi;
+  left: 4.6cqi;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--night);
+}
+
+.hole:nth-child(2) {
+  left: auto;
+  right: 4.6cqi;
+}
+
+.hole:nth-child(3) {
+  top: auto;
+  bottom: 4.6cqi;
+}
+
+.hole:nth-child(4) {
+  top: auto;
+  left: auto;
+  right: 4.6cqi;
+  bottom: 4.6cqi;
+}
+
+/* The safety pin lies across its hole, clasp end on the hole. */
+.pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(36px, 8.6cqi);
+  height: auto;
+  margin: max(-5.4px, -1.3cqi) 0 0 max(-6px, -1.4cqi);
+  overflow: visible;
+  rotate: -14deg;
+  transform-origin: 12% 50%;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.35));
+}
+
+/* Angles shared with bib-png.ts (PIN_ANGLES): the top pins lie along the band, the bottom ones run up the edges, clear of the tab's print. */
+.hole:nth-child(2) .pin {
+  rotate: 194deg;
+}
+
+.hole:nth-child(3) .pin {
+  rotate: -78deg;
+}
+
+.hole:nth-child(4) .pin {
+  rotate: -102deg;
+}
+
+.wire {
+  fill: none;
+  stroke: var(--timing);
+  stroke-width: 1.6px;
+}
+
+.clasp {
+  fill: var(--bib-ink);
+}
+
+/* ---------------------------------------------------------------- the print --- */
+
+.band {
+  margin: 0 -7cqi;
+  padding: 3.8cqi 7cqi 3.4cqi;
+  background: var(--volt);
+  font-size: 4.2cqi;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.name {
+  margin-top: 7cqi;
+  /* Shrinks to fit: an XC capital is about .47em wide, and the line is 86cqi. */
+  font-size: min(10cqi, calc(176cqi / var(--len, 9)));
+  line-height: 0.9;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  padding: 0 0.06em;
+}
+
+.name[data-blank] {
+  color: var(--bib-dim);
+}
+
+.line {
+  margin-top: 2.4cqi;
+  font-size: 4.2cqi;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.code {
+  margin-block: auto;
+  font-size: 31cqi;
+  line-height: 0.82;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* The course profile, printed in ink above the tab. */
+.course {
+  display: block;
+  flex: none;
+  width: 100%;
+  height: 8cqi;
+  margin-bottom: 3.6cqi;
+  overflow: visible;
+}
+
+.course polyline {
+  fill: none;
+  stroke: var(--bib-ink);
+  stroke-width: 1.5px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ------------------------------------------------------- the timing tab --- */
+
+.tab {
+  position: relative;
+  padding-top: 3.2cqi;
+  text-align: center;
+}
+
+/* Tear notches at both ends of the perforation. */
+.tab::before,
+.tab::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -7cqi;
+  width: 3.2cqi;
+  height: 3.2cqi;
+  border-radius: 50%;
+  background: var(--night);
+  translate: -50% -50%;
+}
+
+.tab::after {
+  left: auto;
+  right: -7cqi;
+  translate: 50% -50%;
+}
+
+.perf {
+  position: absolute;
+  top: -1px;
+  left: -5cqi;
+  width: calc(100% + 10cqi);
+  height: 2px;
+  overflow: visible;
+}
+
+.perf line {
+  stroke: var(--bib-dim);
+  stroke-width: 2px;
+  stroke-dasharray: 2 6;
+}
+
+.weight {
+  font-size: 4cqi;
+  line-height: 1.2;
+}
+
+.sponsor {
+  margin-top: 1.4cqi;
+  font: 600 max(13px, 2.9cqi) / 1.3 var(--font-sans);
+  color: var(--bib-dim);
+}
+
+/* ------------------------------------------------------------ the stamp --- */
+
+.stamp {
+  position: absolute;
+  z-index: 1;
+  /* Over the foot of the code, like a real stamp, and clear of the course print below. */
+  top: 61%;
+  right: 5.5cqi;
+  padding: 1.6cqi 2.4cqi 1.2cqi;
+  border: 4px solid var(--bib-ink);
+  font-size: 8.4cqi;
+  line-height: 0.9;
+  rotate: -8deg;
+  mix-blend-mode: multiply;
+}
+
+/*
+ * Pinning is rare, so it gets the one physical moment on the page: the rubber stamp
+ * slams down from above (1.5x, turned further, 280 ms), undershoots a touch on impact
+ * and settles; at the impact the whole card gives under it (2 px down, a hair less
+ * turned, 160 ms, transform only), the four pins drop into their holes, and the
+ * confetti fires from the stamp's own animationend (bib.tsx), so the burst comes from
+ * the hit. Everything only exists once pinned, so it plays once per pin. Under reduced
+ * motion the stamp and the pins simply appear and there is no confetti.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .stamp {
+    animation: stamp 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+
+  .card[data-pinned] {
+    animation: impact 160ms var(--ease-settle) 230ms;
+  }
+
+  .pin {
+    animation: pin 120ms var(--ease-snap) both;
+    animation-delay: calc(240ms + var(--i) * 80ms);
+  }
+}
+
+@keyframes stamp {
+  from {
+    scale: 1.5;
+    rotate: -14deg;
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  85% {
+    scale: 0.96;
+    rotate: -8deg;
+  }
+  to {
+    scale: 1;
+    rotate: -8deg;
+  }
+}
+
+@keyframes impact {
+  40% {
+    translate: 0 2px;
+    rotate: -2.6deg;
+  }
+}
+
+@keyframes pin {
+  from {
+    translate: 0 -6px;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  to {
+    translate: 0 0;
+  }
+}

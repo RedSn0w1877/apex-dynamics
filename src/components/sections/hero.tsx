@@ -2,196 +2,172 @@
 
 // © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute.
 
-import { memo, useRef } from "react";
-import { ArrowUpRight } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
-import { Marquee } from "@/components/ui/marquee";
-import { MagneticButton } from "@/components/ui/magnetic-button";
-import { LazyStackScene } from "@/components/three/lazy-stack-scene";
-import { LogMark } from "@/components/brand/log-mark";
-import { EASE_OUT } from "@/components/ui/reveal";
-import { gsap, useGSAP } from "@/lib/gsap";
-import { explodeStore } from "@/lib/explode-store";
+import { Fragment, type CSSProperties } from "react";
+import { STILLS, type ImageFile } from "@/assets/apex";
+import { Ridge } from "@/components/course/ridge";
+import { Glyph } from "@/components/ui/glyph";
+import { RaceDigits } from "@/components/ui/race-digits";
+import { TIMING_LINE } from "@/lib/copyright";
+import { CHECKPOINTS, FINISH } from "@/lib/course";
+import { LAYER_BY_ID, SHOE_TOTAL_GRAMS, TALLY_ORDER } from "@/lib/shoe-layers";
+import { OUTSOLE_RUBBER, SHOE } from "@/lib/shoe-spec";
+import { HeroParallax } from "./hero-parallax";
+import styles from "./hero.module.css";
 
-const TICKER_ITEMS = [
-  "218 G PER SHOE",
-  "38 MM HEEL / 30 MM FOREFOOT",
-  "8 MM DROP",
-  "84% ENERGY RETURN",
-  "BUILT FOR 50K TO 100 MILES",
-] as const;
-
-const BADGES = [
-  { label: "Weight", value: "218 g" },
-  { label: "Stack height", value: "38 / 30 mm" },
-  { label: "Built for", value: "50K – 100 mi" },
-] as const;
-
-const KINETIC_INITIAL = { y: "105%" };
-const KINETIC_ANIMATE = { y: "0%" };
-
-/**
- * One line of the headline, revealed word by word. The h1 carries the plain-text
- * aria-label; this is the aria-hidden visual layer.
+/*
+ * The start line: a night-race poster standing on the course. The 30 km profile
+ * is the ground of the screen: the 218 stands on its first summit, the plain
+ * sentence and the stats on its second, the shoe runs across the valley, and
+ * the START flag at km 0 is the way in.
+ *
+ * Everything is server-rendered and visible without JS. Entrances are CSS only
+ * (transform, never opacity) and run only under html.js with no motion
+ * preference. On desktop every piece is absolutely placed in vw/svh and the
+ * numerals sit in a fixed-aspect box, so a font swap can't move anything.
+ * No WebGL here: the site's one 3D scene waits in #inside.
+ *
+ * A client component with no state of its own: it is still rendered into the
+ * static HTML (and reads fine without JS), but a server component's markup is
+ * paid twice, in the HTML and again in the RSC payload, and this one is mostly
+ * static markup. React hydrates server-component markup as host elements either
+ * way, so this only adds the component call itself.
  */
-const KineticWords = memo(function KineticWords({
-  words,
-  startIndex,
-  className,
-}: {
-  words: string[];
-  startIndex: number;
-  className?: string;
-}) {
-  const reduce = useReducedMotion();
-  return (
-    <span aria-hidden className={`block ${className ?? ""}`}>
-      {words.map((word, i) => {
-        const delay = 0.1 + (startIndex + i) * 0.06;
-        return (
-          <span key={word}>
-            <span className="-mr-[0.14em] -mt-[0.2em] inline-block overflow-hidden pb-[0.05em] pr-[0.14em] pt-[0.2em] align-bottom">
-              <motion.span
-                className="inline-block"
-                initial={reduce ? false : KINETIC_INITIAL}
-                animate={KINETIC_ANIMATE}
-                transition={{ duration: 0.7, ease: EASE_OUT, delay }}
-              >
-                {word}
-              </motion.span>
-            </span>
-            {/* A real space character, not just CSS margin, so selecting or copying this text doesn't run words together. */}
-            {i < words.length - 1 && " "}
-        </span>
-      )})}
-    </span>
-  );
-});
+
+// Widths come from the manifest, not the import: Turbopack misreads AVIF sizes.
+const srcSet = (files: readonly ImageFile[]) => files.map(({ file, width }) => `${file.src} ${width}w`).join(", ");
+const SIZES = "(max-width: 639px) 112vw, (max-width: 1023px) 70vw, 100vw";
+
+const FIGURES = [
+  { value: `${SHOE.stackHeelMm}/${SHOE.stackForefootMm}`, label: "mm of cushion, heel / toe" },
+  { value: String(SHOE.dropMm), label: "mm drop" },
+  { value: String(SHOE.lugMm), label: `mm lugs, ${OUTSOLE_RUBBER} rubber` },
+] as const;
+
+const PARTS = TALLY_ORDER.map((id) => ({ id, grams: LAYER_BY_ID[id].weightGrams }));
+const PARTS_SPOKEN = `Weight by part at EU ${SHOE.baseSizeEu}: ${PARTS.map((p) => `${p.id} ${p.grams} g`).join(", ")}; ${SHOE_TOTAL_GRAMS} g in all.`;
 
 export function Hero() {
-  const section = useRef<HTMLElement>(null);
-
-  useGSAP(
-    () => {
-      const media = gsap.matchMedia();
-      media.add("(prefers-reduced-motion: no-preference)", () => {
-        // Scroll scrubs the stack apart and back together — the whole hero is one
-        // timeline rather than a set of independent triggers, so it reads as a shot.
-        gsap
-          .timeline({
-            scrollTrigger: {
-              trigger: section.current,
-              start: "top top",
-              end: "+=55%",
-              scrub: 0.7,
-              invalidateOnRefresh: true,
-            },
-          })
-          .to(explodeStore, { value: 1, ease: "power2.inOut", duration: 1 });
-
-        return () => {
-          explodeStore.value = 0;
-        };
-      });
-      return () => media.revert();
-    },
-    { scope: section },
-  );
-
+  const { avif, webp } = STILLS.hero;
+  const still = webp[webp.length - 1];
   return (
-    <section id="top" ref={section} className="relative border-b border-gridline pt-16">
-      <div className="mx-auto max-w-[1440px] px-5 pt-10 md:px-10">
-        <LogMark log="01" title="Prototype 04 — race day telemetry" />
-      </div>
+    <section id="start" className={styles.hero}>
+      <Ridge variant="hero" className={styles.ridge} />
 
-      <div className="mx-auto max-w-[1440px] px-5 pb-14 pt-10 md:px-10 md:pb-20 md:pt-14">
-        {/* Asymmetric split: type carries the left, the spec diagram anchors the right. */}
-        <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
-          <div className="lg:col-span-7">
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-volt">
-              Prototype 04 — Carbon-plated trail racing shoe
-            </p>
-            <h1
-              aria-label="218 grams between you and the mountain."
-              className="mt-5 font-display text-[clamp(2.75rem,5.6vw,5rem)] italic font-black uppercase leading-[0.86] tracking-tighter text-chalk"
-            >
-              <KineticWords words={["218", "grams"]} startIndex={0} className="text-volt" />
-              <KineticWords words={["between", "you", "and", "the", "mountain."]} startIndex={2} />
-            </h1>
+      <h1 className={`t-label ${styles.h1}`}>
+        Prototype 04 — a carbon-plated <span className={styles.volt}>trail racing shoe</span> for 50K to 100 miles.
+      </h1>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.7 }}
-              className="mt-7 max-w-lg text-[15px] leading-relaxed text-chalk/65"
-            >
-              Prototype 04 is a trail racing shoe built for 50K and longer. A carbon plate under the forefoot gives
-              back 84% of the energy you put into every stride, so the last hour of a race feels closer to the
-              first. Explore the concept through interactive, simulated test data below.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.9 }}
-              className="mt-9 flex flex-wrap items-center gap-5"
-            >
-              <MagneticButton
-                href="#allocation"
-                className="inline-flex h-14 items-center gap-2 bg-volt px-7 font-mono text-xs font-bold uppercase tracking-[0.16em] text-void transition-colors hover:bg-chalk"
-              >
-                Explore Prototype 04
-                <ArrowUpRight aria-hidden className="h-4 w-4" strokeWidth={2.5} />
-              </MagneticButton>
-              <a
-                href="#anatomy"
-                className="font-mono text-xs uppercase tracking-[0.18em] text-chalk/60 underline decoration-gridline underline-offset-4 transition-colors hover:text-chalk hover:decoration-chalk"
-              >
-                See the build
-              </a>
-            </motion.div>
-          </div>
-
-          {/*
-            No entrance animation on this panel. The diagram is content, not decoration —
-            gating it behind JS makes it vanish on a throttled tab or a failed hydration.
-          */}
-          <div className="lg:col-span-5">
-            <div className="border border-gridline bg-carbon">
-              <div className="flex items-baseline justify-between border-b border-gridline px-5 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                <span>Fig. 01 — Prototype 04, exploded</span>
-                <span className="text-chalk">Scroll to separate</span>
-              </div>
-              {/* Live 3D: the shoe pulls apart into its five layers as the hero timeline scrubs. */}
-              <div className="h-[320px] md:h-[440px]">
-                <LazyStackScene explode={explodeStore} />
-              </div>
-            </div>
+      {/*
+        Two layers in one fixed-aspect box: "218" sits behind the shoe and the volt "G" in front
+        of it, so the shoe can never cover the unit. data-par: the pointer parallax moves these.
+      */}
+      <div aria-hidden="true" className={styles.nums}>
+        <div className={`${styles.numScroll} ${styles.back}`} data-par="num">
+          <div className={styles.numLoad}>218</div>
+        </div>
+        <div className={`${styles.numScroll} ${styles.front}`} data-par="num">
+          <div className={styles.numLoad}>
+            <span className={styles.g}>G</span>
           </div>
         </div>
-
-        <dl className="mt-12 grid grid-cols-1 gap-px border border-gridline bg-gridline sm:grid-cols-3">
-          {BADGES.map((badge) => (
-            <div key={badge.label} className="bg-void px-5 py-4">
-              <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">{badge.label}</dt>
-              <dd className="mt-1.5 font-display text-xl italic font-bold tabular-nums text-chalk">{badge.value}</dd>
-            </div>
-          ))}
-        </dl>
       </div>
 
-      <div className="border-t border-gridline bg-carbon py-3.5">
-        <Marquee>
-          {TICKER_ITEMS.map((item) => (
-            <span key={item} className="mx-4 flex items-center font-mono text-xs uppercase tracking-[0.22em] text-chalk/70">
-              {item}
-              <span aria-hidden className="ml-4 text-volt">
-                {"//"}
+      {/*
+        The 218, weighed part by part: the same five layers #inside cuts open. One aria-hidden
+        row styled by element (b = the part, i = the operator), so its markup stays small; the
+        spoken version is the line above it. On load the terms roll up left to right.
+      */}
+      <div className={styles.parts}>
+        <p className="vh">{PARTS_SPOKEN}</p>
+        <p aria-hidden="true" className={`t-label ${styles.partsRow}`}>
+          {PARTS.map((part, i) => (
+            <Fragment key={part.id}>
+              {i > 0 && <i>+</i>}
+              <span style={{ "--i": i } as CSSProperties}>
+                <RaceDigits value={part.grams} format="00" silent className={styles.partNum} />
+                <b>{part.id}</b>
               </span>
-            </span>
+            </Fragment>
           ))}
-        </Marquee>
+          <i>=</i>
+          <span style={{ "--i": PARTS.length } as CSSProperties}>
+            <span className={styles.partNum}>
+              <RaceDigits value={SHOE_TOTAL_GRAMS} format="000" silent />
+              {" G"}
+            </span>
+            <b>{`at EU ${SHOE.baseSizeEu}`}</b>
+          </span>
+        </p>
       </div>
+
+      {/*
+        The plain sentence finishes the giant number ("218 G … with a carbon plate and 3 mm
+        lugs"), so the weight is said once, big, and not three times. Then the three figures,
+        and the old slogan, demoted to one quiet line under them.
+      */}
+      <div className={styles.claim}>
+        <p className={`t-display ${styles.plain}`}>
+          <span className="vh">{`${SHOE.weightG} grams `}</span>
+          {/* Non-breaking space keeps the number with its unit. */}
+          {`with a carbon plate and ${SHOE.lugMm} mm lugs.`}
+        </p>
+        <ul className={styles.figs}>
+          {FIGURES.map((fig) => (
+            <li key={fig.label} className={styles.fig}>
+              <span className={`t-display ${styles.figNum}`}>{fig.value}</span>
+              <span className={`t-label ${styles.figLabel}`}>{fig.label}</span>
+            </li>
+          ))}
+        </ul>
+        <p className={`t-label ${styles.tag}`}>
+          <span className="vh">218 </span>Grams between you and the mountain.
+        </p>
+      </div>
+
+      <picture className={styles.shoe} data-par="shoe">
+        <source type="image/avif" srcSet={srcSet(avif)} sizes={SIZES} />
+        <img
+          src={still.file.src}
+          srcSet={srcSet(webp)}
+          sizes={SIZES}
+          width={still.width}
+          height={still.height}
+          fetchPriority="high"
+          alt="Prototype 04 from the side: dark knit upper with volt stripes, white foam midsole, black lugged outsole."
+        />
+      </picture>
+
+      <div className={styles.cta}>
+        <a href="#bib" className={`t-display ${styles.bib}`} aria-describedby="bib-what">
+          <span>
+            Get your bib
+            <Glyph name="ne" />
+          </span>
+        </a>
+        <p id="bib-what" className={styles.what}>
+          <strong>Not on sale yet.</strong> Prototype 04 is in field testing: pin on a bib and we&apos;ll send you a pair
+          to run in. Expected price at launch: $250.
+        </p>
+      </div>
+
+      {/* The START flag at km 0 of the profile is the way into the course. */}
+      <a href="#stride" className={styles.start}>
+        <Glyph name="flag" className={styles.flag} />
+        <span className={styles.startText}>
+          <span className={`t-label ${styles.startRun}`}>
+            Run the course
+            <Glyph name="down" />
+          </span>
+          <span className={`t-label ${styles.startMeta}`}>
+            {`${FINISH.km} km · ${FINISH.climbM} m of climbing · ${CHECKPOINTS.length} checkpoints`}
+          </span>
+        </span>
+      </a>
+
+      <p aria-hidden="true" className={`t-label ${styles.timing}`}>
+        {TIMING_LINE}
+      </p>
+      <HeroParallax />
     </section>
   );
 }

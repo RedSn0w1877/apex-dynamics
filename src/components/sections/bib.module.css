@@ -1,0 +1,662 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+/* CP4 · KM 29 · PIN ON YOUR BIB. Also styles the form fields (ui/allocation-field.tsx), whose only user is this section. */
+
+.section {
+  position: relative;
+  /* The rotated bib may lean past the edge on phones; clip sideways, never vertically (the bib is sticky). */
+  overflow-x: clip;
+  padding-bottom: clamp(56px, 6vw, 104px);
+}
+
+/* ------------------------------------------------------------------ head --- */
+
+.head {
+  display: grid;
+  gap: 24px 48px;
+  padding: 32px var(--edge) 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--chalk);
+  text-wrap: balance;
+}
+
+.intro {
+  max-width: 38ch;
+}
+
+.price {
+  margin-top: 12px;
+  color: var(--dust);
+}
+
+.price strong {
+  font-weight: 600;
+  color: var(--chalk);
+}
+
+/*
+ * The last checkpoint is the climax of the course, so its head breaks the pattern the
+ * other three share: the gate row stays (the checkpoint rhythm), but the h2 runs the
+ * full width at finish-banner size, and the copy drops in under its right half.
+ */
+@media (min-width: 1024px) {
+  .head {
+    grid-template-columns: minmax(0, 1fr) 38ch;
+    align-items: end;
+  }
+
+  .title {
+    grid-column: 1 / -1;
+    font-size: clamp(6rem, 12.5vw, 14rem);
+    white-space: nowrap;
+  }
+
+  .intro {
+    grid-column: 2;
+  }
+}
+
+/* ------------------------------------------------------------------ grid --- */
+
+.grid {
+  display: grid;
+  gap: clamp(48px, 8vw, 72px);
+  padding: clamp(48px, 6vw, 104px) var(--edge) 0;
+}
+
+.bibCol {
+  min-width: 0;
+}
+
+/* Phones: the bib comes first, at 92vw, centred on the screen. */
+.sticky {
+  width: 92vw;
+  margin-left: calc(50% - 46vw);
+}
+
+.formCol {
+  min-width: 0;
+  max-width: 40rem;
+}
+
+@media (min-width: 640px) {
+  .sticky {
+    width: min(72vw, 480px);
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    /* The form never takes more than about half, so a 1024 screen still gets a ~380 px bib. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(40rem, 52%));
+    column-gap: clamp(48px, 7vw, 160px);
+    align-items: start;
+  }
+
+  /* Desktop: the bib stays in view while the form is filled in, never taller than the screen. */
+  .sticky {
+    position: sticky;
+    top: calc(var(--strip) + 24px);
+    width: min(100%, 560px, calc((100svh - var(--strip) - 72px) * 0.8));
+    margin-inline: auto;
+  }
+}
+
+/* ------------------------------------------------------------------ form --- */
+
+.form {
+  display: grid;
+  gap: clamp(36px, 3.4vw, 48px);
+}
+
+/* Text fields (AllocationField): a timing-line underline, no box. */
+.field {
+  position: relative;
+}
+
+.fieldTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fieldLabel {
+  display: inline-block;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--chalk);
+}
+
+.fieldStatus {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--dust);
+}
+
+.fieldStatus[data-state="ok"],
+.fieldStatus[data-state="check"] {
+  color: var(--volt);
+}
+
+.fieldLine {
+  position: relative;
+  margin-top: 4px;
+  /* --timing is 4.09:1 on night: the resting underline still meets WCAG 1.4.11. */
+  border-bottom: 1px solid var(--timing);
+}
+
+/* The volt rule: wipes in from the left on focus, and stays while the field is wrong. */
+.fieldLine::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--volt);
+  transform-origin: left;
+  scale: 0 1;
+}
+
+.field:focus-within .fieldLine::after,
+.field[data-invalid] .fieldLine::after {
+  scale: 1 1;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--chalk);
+  font: 600 clamp(20px, 1.5vw, 24px) / 1.2 var(--font-sans);
+  caret-color: var(--volt);
+}
+
+/* On text fields the focus indicator is a 2 px volt line under the text (plus the lifted label), not a box. */
+.input:focus-visible {
+  outline: none;
+  box-shadow: 0 2px 0 0 var(--volt);
+}
+
+.input:-webkit-autofill {
+  -webkit-text-fill-color: var(--chalk);
+  box-shadow: 0 0 0 100px var(--night) inset;
+  caret-color: var(--volt);
+}
+
+.fieldError {
+  margin: 10px 0 0;
+  font: 600 15px / 1.4 var(--font-sans);
+  color: var(--chalk);
+}
+
+/* A short volt tick before each message: the course marking for "look here". */
+.fieldError::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  margin-right: 10px;
+  vertical-align: 0.3em;
+  background: var(--volt);
+  transform: skewX(-20deg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .field:hover .fieldLine {
+    border-bottom-color: var(--dust);
+  }
+}
+
+/* ------------------------------------------------------ tiles and sizes --- */
+
+.group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: 14px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--chalk);
+}
+
+/* The native radio sits invisibly over its tile: it keeps arrow keys, focus and form semantics. */
+.radio {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tile,
+.size {
+  position: relative;
+  display: block;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tileFace {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 100%;
+  padding: 16px 20px 14px;
+  border: 1px solid var(--timing);
+  transform: skewX(-8deg);
+}
+
+.tileFace > * {
+  transform: skewX(8deg);
+}
+
+.tileWord {
+  font-size: clamp(1.75rem, 2.3vw, 2.375rem);
+  line-height: 0.9;
+  color: var(--chalk);
+}
+
+.tileSub {
+  font-size: 14px;
+  line-height: 1.25;
+  color: var(--dust);
+}
+
+.sizes {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* The skewed outline is a layer behind the number, so the digits stay upright. */
+.sizeFace {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 56px;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--chalk);
+}
+
+.sizeFace::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid var(--timing);
+  transform: skewX(-8deg);
+}
+
+.radio:checked + .tileFace,
+.radio:checked + .sizeFace::before {
+  border-color: var(--volt);
+  background: var(--volt);
+}
+
+.radio:checked + .tileFace .tileWord,
+.radio:checked + .tileFace .tileSub,
+.radio:checked + .sizeFace {
+  color: var(--night);
+}
+
+.radio:focus-visible + .tileFace,
+.radio:focus-visible + .sizeFace::before {
+  outline: 3px solid var(--volt);
+  outline-offset: 3px;
+}
+
+.sizes .size {
+  isolation: isolate;
+}
+
+.note {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--dust);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover .tileFace,
+  .size:hover .sizeFace::before {
+    border-color: var(--dust);
+  }
+
+  .tile:hover .radio:checked + .tileFace,
+  .size:hover .radio:checked + .sizeFace::before {
+    border-color: var(--volt);
+  }
+}
+
+@media (max-width: 639px) {
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .tileFace {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 14px 18px;
+  }
+
+  .sizes {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* --------------------------------------------------------------- consent --- */
+
+.consent {
+  position: relative;
+}
+
+.check {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  cursor: pointer;
+}
+
+.checkInput {
+  position: absolute;
+  top: 1px;
+  left: 0;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.box {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border: 1px solid var(--timing);
+}
+
+.box svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: var(--night);
+  stroke-width: 2.2;
+  stroke-linecap: square;
+  visibility: hidden;
+}
+
+.checkInput:checked + .box {
+  border-color: var(--volt);
+  background: var(--volt);
+}
+
+.checkInput:checked + .box svg {
+  visibility: visible;
+}
+
+.checkInput:focus-visible + .box {
+  outline: 3px solid var(--volt);
+  outline-offset: 3px;
+}
+
+.consent[data-invalid] .box {
+  border-color: var(--volt);
+  border-width: 2px;
+}
+
+.checkText {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--chalk);
+  text-wrap: pretty;
+}
+
+.inlineLink {
+  position: relative;
+  z-index: 2;
+  color: var(--chalk);
+  text-decoration: underline;
+  text-decoration-color: var(--volt);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .check:hover .box {
+    border-color: var(--dust);
+  }
+
+  .inlineLink:hover {
+    text-decoration-thickness: 2px;
+  }
+}
+
+/* ---------------------------------------------------------------- submit --- */
+
+.submitRow {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+}
+
+.submit {
+  display: inline-flex;
+  align-items: center;
+  /* The same primary button as the hero's "Get your bib": one height, one label size. */
+  height: clamp(56px, 3vw, 64px);
+  padding: 0 28px;
+  border: 0;
+  border-radius: 0;
+  background: var(--volt);
+  color: var(--night);
+  font-size: clamp(22px, 1.3vw, 28px);
+  cursor: pointer;
+  transform: skewX(-8deg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.submit > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transform: skewX(8deg);
+}
+
+.submit:disabled {
+  background: var(--ridge);
+  color: var(--dust);
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .submit:not(:disabled):hover {
+    background: var(--chalk);
+  }
+}
+
+.small {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--dust);
+}
+
+/* Shown only without JS, where the disabled submit needs a reason. */
+:global(html.js) .nojs {
+  display: none;
+}
+
+/* ---------------------------------------------------------- confirmation --- */
+
+.done {
+  display: grid;
+  justify-items: start;
+  gap: 22px;
+}
+
+.doneTitle {
+  margin: 0;
+  font-size: clamp(2.75rem, 4.6vw, 4.75rem);
+  color: var(--chalk);
+  text-wrap: balance;
+}
+
+/* Focus is moved here after pinning; a keyboard user sees the ring sit clear of the type. */
+.doneTitle:focus-visible {
+  outline-offset: 8px;
+}
+
+.doneText {
+  max-width: 40ch;
+  margin: 0;
+  color: var(--chalk);
+}
+
+.doneText strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.doneActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 32px;
+}
+
+.edit {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--chalk);
+  font-size: 18px;
+  text-decoration: underline;
+  text-decoration-color: var(--timing);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .edit:hover {
+    text-decoration-color: var(--volt);
+  }
+}
+
+/* ---------------------------------------------------------------- motion --- */
+
+/*
+ * Feedback only, all interruptible transitions or one-shot keyframes on
+ * transform: the label lift, the underline wipe, the tile fill, the press, the
+ * error line and the confirmation arriving. Reduced motion keeps the colour
+ * changes and drops the movement.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .fieldLabel {
+    transition: translate 200ms var(--ease-settle);
+  }
+
+  /* Pointer focus only: a Tab into the field is repeated input, so its feedback stays instant (colour, no lift). */
+  .field:has(:focus:not(:focus-visible)) .fieldLabel {
+    translate: 0 -2px;
+  }
+
+  .fieldLine::after {
+    transition: scale 260ms var(--ease-settle);
+  }
+
+  .fieldError {
+    animation: drop-in 200ms var(--ease-settle);
+  }
+
+  .tileFace,
+  .sizeFace::before {
+    transition:
+      transform 160ms var(--ease-settle),
+      background-color 150ms ease,
+      border-color 150ms ease;
+  }
+
+  .tile:active .tileFace {
+    transform: skewX(-8deg) scale(0.97);
+  }
+
+  .size:active .sizeFace::before {
+    transform: skewX(-8deg) scale(0.94);
+  }
+
+  .box {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .submit {
+    transition:
+      transform 160ms var(--ease-settle),
+      background-color 150ms ease;
+  }
+
+  .submit:not(:disabled):active {
+    transform: skewX(-8deg) scale(0.97);
+  }
+
+  .done {
+    animation: rise-in 280ms var(--ease-settle) both;
+  }
+}
+
+/* Reduced motion: a press still answers, as an instant colour change instead of a squeeze. */
+@media (prefers-reduced-motion: reduce) {
+  .submit:not(:disabled):active {
+    background: var(--chalk);
+  }
+
+  .tile:active .tileFace,
+  .size:active .sizeFace::before {
+    background-color: var(--dust);
+  }
+}
+
+@keyframes drop-in {
+  from {
+    translate: 0 -4px;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    translate: 0 14px;
+  }
+}

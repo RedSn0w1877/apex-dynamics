@@ -1,0 +1,297 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+.strip {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: var(--strip);
+  background: var(--night);
+  border-bottom: 1px solid var(--ridge);
+}
+
+/*
+ * Wordmark, legend, profile, status, bib. The status takes the flexible column and sits
+ * at its start, so it always reads as the end of the profile, not a word adrift in a gap.
+ */
+.nav {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 640px) minmax(120px, 1fr) auto;
+  align-items: center;
+  column-gap: 24px;
+  height: 100%;
+  padding: 0 var(--edge);
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-right: 0.08em;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--chalk);
+}
+
+/* What the line is, in words: two small lines between the wordmark and the profile. */
+.legend {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-size: 13px;
+  line-height: 15px;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+.legend > span {
+  color: var(--dust);
+}
+
+/* ------------------------------------------------------------ the profile --- */
+
+.profile {
+  --ph: 28px;
+  position: relative;
+  height: var(--ph);
+}
+
+.line,
+.run {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.line polyline,
+.run polyline {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.line polyline {
+  stroke: var(--ridge);
+  stroke-width: 1.5px;
+}
+
+.run polyline {
+  stroke: var(--volt);
+  stroke-width: 2px;
+}
+
+/*
+ * The travelled course is revealed by a translate pair, both on the compositor:
+ * the window slides in from the left while the line inside slides the other way,
+ * so the line stays put and only the window's right edge moves.
+ */
+.outer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform: translateX(-100%);
+}
+
+.inner {
+  position: absolute;
+  inset: 0;
+  transform: translateX(100%);
+}
+
+/* Centred on (0, 0) of the profile, then moved to the runner's km. Starts at km 0. */
+.dot {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--volt);
+  pointer-events: none;
+  translate: var(--x, 0px) var(--y, calc(var(--ph) * 0.9565));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dot {
+    transition: translate 300ms var(--ease-snap);
+  }
+
+  .outer,
+  .inner {
+    transition: transform 300ms var(--ease-snap);
+  }
+}
+
+/* A 28 × 44 hit area centred on each checkpoint's tick, which sits on the course line. */
+.cp {
+  position: absolute;
+  top: -8px;
+  left: calc(var(--cx) - 14px);
+  width: 28px;
+  height: 44px;
+}
+
+.tick {
+  position: absolute;
+  left: 13px;
+  top: calc(8px + var(--cy) * var(--ph) - 5px);
+  width: 1px;
+  height: 10px;
+  background: var(--volt);
+}
+
+.cpl {
+  position: absolute;
+  top: calc(8px + var(--ph) + 1px);
+  left: 50%;
+  translate: -50% 0;
+  font-size: 12px;
+  line-height: 12px;
+  color: var(--dust);
+  white-space: nowrap;
+}
+
+.cp[aria-current] .cpl {
+  color: var(--chalk);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cp:hover .cpl {
+    color: var(--chalk);
+  }
+}
+
+/* The checkpoint's name shows where there is room for it (desktop). */
+.cpName {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .cpName {
+    display: inline;
+  }
+}
+
+/* ------------------------------------------------------- status and bib tag --- */
+
+.status {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+.bib {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--volt);
+  color: var(--night);
+  font-size: 17px;
+  line-height: 1;
+  white-space: nowrap;
+  transform: skewX(-8deg);
+}
+
+.bib > span {
+  display: block;
+  transform: skewX(8deg);
+}
+
+/* The tag stays 34–40 px tall to fit the strip; its hit area reaches 44 px. */
+.bib {
+  position: relative;
+}
+
+.bib::after {
+  content: "";
+  position: absolute;
+  inset: -5px 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bib:hover {
+    background: var(--chalk);
+  }
+}
+
+/* Reduced motion: the press is an instant colour change, no squeeze. */
+@media (prefers-reduced-motion: reduce) {
+  .bib:active {
+    background: var(--dust);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bib {
+    transition:
+      transform 160ms var(--ease-settle),
+      background-color 150ms ease;
+  }
+
+  .bib:active {
+    transform: skewX(-8deg) scale(0.97);
+  }
+}
+
+/* ------------------------------------------------------------- legal pages --- */
+
+.legal {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 100%;
+  padding: 0 var(--edge);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--chalk);
+  border-bottom: 2px solid var(--volt);
+}
+
+/* ------------------------------------------------------------- breakpoints --- */
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .nav {
+    grid-template-columns: auto auto minmax(0, 640px) minmax(96px, 1fr) auto;
+    column-gap: 20px;
+  }
+}
+
+@media (max-width: 639px) {
+  .nav {
+    grid-template-columns: auto 120px auto;
+    justify-content: space-between;
+    column-gap: 12px;
+  }
+
+  .mark {
+    font-size: 24px;
+  }
+
+  .status,
+  .legend,
+  .cpl {
+    display: none;
+  }
+
+  .bib {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 15px;
+  }
+}
+
+/* The last checkpoint sits at the end of the line; its label hangs left so it stays inside. */
+.cp:last-of-type .cpl {
+  left: auto;
+  right: 0;
+  translate: none;
+}

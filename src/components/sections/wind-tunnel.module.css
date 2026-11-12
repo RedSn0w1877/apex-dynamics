@@ -1,0 +1,343 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+/*
+ * CP3 · Wind. A full-bleed still with its streamlines, then the speed tiles and
+ * drag rules on the left and the watts as a poster numeral on the right.
+ */
+
+.wind {
+  position: relative;
+  overflow-x: clip;
+  padding-bottom: 96px;
+}
+
+.intro {
+  display: grid;
+  gap: 24px 48px;
+  padding: 32px var(--edge) 8px;
+}
+
+.intro h2 {
+  margin: 0;
+  color: var(--chalk);
+}
+
+.lead {
+  margin: 0;
+  max-width: 38ch;
+}
+
+@media (min-width: 1024px) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr) 38ch;
+    align-items: end;
+  }
+}
+
+/* --------------------------------------------------------- the figure --- */
+
+/*
+ * The still and the streamlines share one 1600 x 560 frame at full width, so they line up
+ * exactly. The frame is fixed-aspect, so it can take strict containment: a repaint of the
+ * streamlines never reaches past it.
+ */
+.figure {
+  position: relative;
+  aspect-ratio: 1600 / 560;
+  contain: strict;
+}
+
+.still,
+.still img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Each path carries its own dash phase in its dasharray (wind-flow.tsx), so nothing here reads a var(). */
+.lines path {
+  fill: none;
+  stroke: var(--dust);
+  stroke-opacity: 0.55;
+  stroke-width: 1.25px;
+  vector-effect: non-scaling-stroke;
+}
+
+/*
+ * One 6 s run per entry or speed change, then nothing. Static keyframes, one per speed:
+ * the travel is a whole number of 36-unit dash periods, so the last frame is the first.
+ * The air runs at a steady speed for 75% of the run, then settles (the 75% segment's
+ * curve starts at the linear speed, so there is no kink, and ends at rest).
+ *
+ * Lite devices don't run it at all: stroke-dashoffset can't be composited, and on a
+ * throttled phone the repaints cost seconds of main thread. They get the static dashes,
+ * nudged to a new phase per speed so a tile press still shows the air change.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Longhands on purpose: a nameless `animation` shorthand compiles to `animation: none`. */
+  :global(html:not([data-lite])) .flow path {
+    animation-duration: 6s;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+  }
+
+  :global(html:not([data-lite])) .flow[data-speed="15"] path {
+    animation-name: flow-15;
+  }
+
+  :global(html:not([data-lite])) .flow[data-speed="25"] path {
+    animation-name: flow-25;
+  }
+
+  :global(html:not([data-lite])) .flow[data-speed="35"] path {
+    animation-name: flow-35;
+  }
+}
+
+:global(html[data-lite]) .lines g[data-speed="15"] path {
+  stroke-dashoffset: 0;
+}
+
+:global(html[data-lite]) .lines g[data-speed="25"] path {
+  stroke-dashoffset: -12;
+}
+
+:global(html[data-lite]) .lines g[data-speed="35"] path {
+  stroke-dashoffset: -24;
+}
+
+@keyframes flow-15 {
+  from {
+    stroke-dashoffset: 0;
+  }
+  75% {
+    stroke-dashoffset: -86.4;
+    animation-timing-function: cubic-bezier(0.3, 0.4, 0.6, 1);
+  }
+  to {
+    stroke-dashoffset: -108;
+  }
+}
+
+@keyframes flow-25 {
+  from {
+    stroke-dashoffset: 0;
+  }
+  75% {
+    stroke-dashoffset: -172.8;
+    animation-timing-function: cubic-bezier(0.3, 0.4, 0.6, 1);
+  }
+  to {
+    stroke-dashoffset: -216;
+  }
+}
+
+@keyframes flow-35 {
+  from {
+    stroke-dashoffset: 0;
+  }
+  75% {
+    stroke-dashoffset: -230.4;
+    animation-timing-function: cubic-bezier(0.3, 0.4, 0.6, 1);
+  }
+  to {
+    stroke-dashoffset: -288;
+  }
+}
+
+/* ---------------------------------------------------------- the panel --- */
+
+.panel {
+  display: grid;
+  gap: 48px 64px;
+  padding: 28px var(--edge) 0;
+}
+
+@media (min-width: 1024px) {
+  .panel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    align-items: end;
+  }
+}
+
+.speeds {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: 14px;
+  padding: 0;
+  font-size: 15px;
+  color: var(--dust);
+}
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* A skewed race tag with a native radio inside; the outline at rest is the timing grey (4.09:1). */
+.tile {
+  position: relative;
+  display: inline-flex;
+  min-height: 56px;
+  padding: 10px 24px 8px;
+  align-items: center;
+  color: var(--chalk);
+  outline: 1.5px solid var(--timing);
+  outline-offset: -1.5px;
+  transform: skewX(-8deg);
+  cursor: pointer;
+}
+
+.tileFace {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
+  transform: skewX(8deg);
+}
+
+.tileNum {
+  font-size: clamp(2rem, 2.8vw, 2.75rem);
+}
+
+.tileUnit {
+  font-size: 15px;
+}
+
+.tile:has(:checked) {
+  background: var(--volt);
+  color: var(--night);
+  outline-color: var(--volt);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover:not(:has(:checked)) {
+    outline-color: var(--chalk);
+  }
+}
+
+/* Press: a squeeze with motion, an instant colour change without it. Same rule as every other pressable. */
+@media (prefers-reduced-motion: no-preference) {
+  .tile {
+    transition:
+      transform 160ms var(--ease-settle),
+      background-color 160ms ease,
+      color 160ms ease,
+      outline-color 160ms ease;
+  }
+
+  .tile:active {
+    transform: skewX(-8deg) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile:active:not(:has(:checked)) {
+    background: var(--ridge);
+  }
+}
+
+/* The radio itself is visually hidden, so the ring goes on its tile. */
+.tile:has(:focus-visible) {
+  outline: 3px solid var(--volt);
+  outline-offset: 3px;
+}
+
+.bars {
+  display: grid;
+  gap: 18px;
+  margin-top: 36px;
+}
+
+.rule {
+  display: block;
+  height: 6px;
+  background: var(--ridge);
+}
+
+.bar[data-kind="apex"] .rule {
+  background: var(--volt);
+}
+
+.barLabel {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--dust);
+}
+
+.bar[data-kind="apex"] .barLabel {
+  color: var(--chalk);
+}
+
+/* ---------------------------------------------------------- the watts --- */
+
+.result {
+  justify-self: end;
+  text-align: right;
+}
+
+.watts {
+  margin: 0;
+  font-size: clamp(5rem, 10vw, 9rem);
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+.unit {
+  margin-left: 0.04em;
+  font-size: 0.5em;
+}
+
+.wattsLabel {
+  margin: 12px 0 0;
+  font-size: 15px;
+  color: var(--dust);
+}
+
+.wry {
+  max-width: 30ch;
+  margin: 14px 0 0 auto;
+  font-size: clamp(1.25rem, 1.6vw, 1.5rem);
+  line-height: 1.25;
+  color: var(--chalk);
+}
+
+.footnote {
+  max-width: 60ch;
+  margin: 40px var(--edge) 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dust);
+}
+
+@media (max-width: 1023px) {
+  .result {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .wry {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .tile {
+    flex: 1 1 0;
+    justify-content: center;
+    padding-inline: 12px;
+  }
+}

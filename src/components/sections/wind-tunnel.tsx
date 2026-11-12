@@ -2,130 +2,79 @@
 
 // © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute.
 
-import { memo, useEffect, useState } from "react";
-import { motion } from "motion/react";
-import { LazyStackScene } from "@/components/three/lazy-stack-scene";
-import { airflowStore } from "@/lib/explode-store";
-import { useMedia } from "@/lib/use-media";
-import { LogMark } from "@/components/brand/log-mark";
-import { Reveal, EASE_OUT } from "@/components/ui/reveal";
-import { DRAG_COEFFICIENTS, WIND_SPEEDS, wattsSavedPerKm, type WindSpeedKey } from "@/lib/wind-tunnel-data";
+import { STILLS, type ImageFile } from "@/assets/apex";
+import { CheckpointGate } from "@/components/course/checkpoint-gate";
+import { WindFlow } from "@/components/wind/wind-flow";
+import { DRAG_COEFFICIENTS } from "@/lib/wind-tunnel-data";
+import styles from "./wind-tunnel.module.css";
 
-const MAX_CD = 0.5;
+/**
+ * CP3 · KM 22 · WIND. No second WebGL context: a Cycles still of the left shoe
+ * (toe pointing left, so the air runs left to right) with generated
+ * streamlines drawn over it in the same 1600 x 560 frame, three speed tiles,
+ * two drag rules and the watts it's worth. Every figure is illustrative.
+ *
+ * A client component with no state of its own: it is still rendered into the
+ * static HTML (and reads fine without JS), but a server component's markup is
+ * paid twice, in the HTML and again in the RSC payload, and this one is mostly
+ * static markup. React hydrates server-component markup as host elements either
+ * way, so this only adds the component call itself.
+ */
 
-const BarRow = memo(function BarRow({ label, cd, color }: { label: string; cd: number; color: string }) {
-  const widthPct = (cd / MAX_CD) * 100;
-  return (
-    <div>
-      <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.16em] text-chalk/60">
-        <span>{label}</span>
-        <span className="text-chalk">Drag {cd.toFixed(2)}</span>
-      </div>
-      <div className="mt-2 h-3 bg-gridline">
-        <motion.div
-          className="h-full origin-left"
-          style={{ backgroundColor: color, width: `${widthPct}%` }}
-          initial={{ scaleX: 0 }}
-          whileInView={{ scaleX: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: EASE_OUT }}
-        />
-      </div>
-    </div>
-  );
-});
+const srcSet = (files: readonly ImageFile[]) => files.map(({ file, width }) => `${file.src} ${width}w`).join(", ");
+
+const BARS = [
+  { key: "standard", label: `Standard trainer · drag ${DRAG_COEFFICIENTS.standard.toFixed(2)}`, width: "88%" },
+  { key: "apex", label: `Prototype 04 · drag ${DRAG_COEFFICIENTS.apex.toFixed(2)}`, width: "62%" },
+] as const;
 
 export function WindTunnel() {
-  const [speed, setSpeed] = useState<WindSpeedKey>(25);
-  const saved = wattsSavedPerKm(speed);
-  // Matches the `md:` breakpoint that reveals the scene, so the canvas is never
-  // mounted on a phone where it would only be hidden by CSS.
-  const wide = useMedia("(min-width: 768px)");
+  const { avif, webp } = STILLS.wind;
+  const img = webp[webp.length - 1];
 
-  // Drive the particle field straight from the selected wind speed: pick 35 km/h
-  // and the air visibly rips. Written to a plain object so the Canvas doesn't
-  // re-render on every toggle.
-  useEffect(() => {
-    airflowStore.value = speed / 25;
-  }, [speed]);
+  const still = (
+    <picture className={styles.still}>
+      <source type="image/avif" srcSet={srcSet(avif)} sizes="100vw" />
+      <img
+        src={img.file.src}
+        srcSet={srcSet(webp)}
+        sizes="100vw"
+        width={img.width}
+        height={img.height}
+        loading="lazy"
+        decoding="async"
+        alt="Prototype 04 from the side, toe pointing into the wind: a low, slim toe and a smooth heel."
+      />
+    </picture>
+  );
+
+  const bars = (
+    <div className={styles.bars}>
+      {BARS.map((bar) => (
+        <div key={bar.key} className={styles.bar} data-kind={bar.key}>
+          <span className={styles.rule} style={{ width: bar.width }} aria-hidden="true" />
+          <p className={`t-label ${styles.barLabel}`}>{bar.label}</p>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <section id="wind-tunnel" className="border-b border-gridline">
-      <div className="mx-auto max-w-[1440px] px-5 py-20 md:px-10 md:py-28">
-        <LogMark log="04" title="Wind tunnel comparator" />
-
-        <div className="mt-10 grid gap-10 lg:grid-cols-12">
-          <Reveal className="lg:col-span-4">
-            <h2 className="font-display text-4xl italic font-black uppercase leading-[0.9] tracking-tighter text-chalk md:text-5xl">
-              Less drag. <span className="text-volt">Free speed.</span>
-            </h2>
-            <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-chalk/65">
-              Every shoe shoves air out of the way, and that costs you energy. A narrower toe box and a lower
-              profile shove less. This simulated wind-tunnel comparison shows how the estimated power changes
-              at different speeds.
-            </p>
-          </Reveal>
-
-          <div className="lg:col-span-8">
-            {/*
-              Live airflow over the stack — speed is bound to the toggle below.
-              Desktop only: the hero already holds a WebGL context, and a phone
-              running two of them at once pays for it in frame rate and battery.
-              The comparator below carries the section on its own.
-            */}
-            <div className="mb-px hidden h-[260px] border border-gridline bg-void md:block md:h-[320px]">
-              {wide ? (
-                <LazyStackScene
-                  airflow={airflowStore}
-                  cameraPosition={[0, 0.9, 5.2]}
-                  target={[0, 0.2, 0]}
-                  particleCount={1900}
-                  parallax={0.12}
-                />
-              ) : null}
-            </div>
-            <div className="border border-gridline bg-carbon p-6 md:p-8">
-              <div className="flex flex-col gap-6">
-                <BarRow label="Standard trainer" cd={DRAG_COEFFICIENTS.standard} color="#3f3f46" />
-                <BarRow label="Apex Pro" cd={DRAG_COEFFICIENTS.apex} color="#ccff00" />
-              </div>
-
-              <div className="mt-8 border-t border-gridline pt-6">
-                <div role="radiogroup" aria-label="Wind velocity" className="flex flex-wrap gap-2">
-                  {WIND_SPEEDS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      role="radio"
-                      aria-checked={speed === v}
-                      onClick={() => setSpeed(v)}
-                      className={`h-11 border px-4 font-mono text-xs uppercase tracking-[0.16em] transition-colors ${
-                        speed === v
-                          ? "border-volt bg-volt text-void"
-                          : "border-gridline text-chalk/60 hover:border-chalk/40 hover:text-chalk"
-                      }`}
-                    >
-                      {v} km/h
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-6 flex items-end justify-between gap-4">
-                  <p className="max-w-sm text-sm leading-relaxed text-chalk/65">
-                    Estimated power saved from drag reduction alone, holding pace and position constant.
-                  </p>
-                  <p className="shrink-0 text-right">
-                    <span className="block font-display text-4xl italic font-black tabular-nums text-volt">{saved}W</span>
-                    <span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                      estimated saving
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <section id="wind" aria-labelledby="wind-title" className={styles.wind}>
+      <CheckpointGate cp={3} />
+      <div className={styles.intro}>
+        <h2 id="wind-title" className="t-display t-cp">
+          Wind at race pace.
+        </h2>
+        <p className={styles.lead}>
+          Kilometre 22. Your calves have opinions now, and the air is pushing back. A slimmer toe and a lower profile
+          shove less of it out of the way. Pick a pace to see what that&apos;s worth.
+        </p>
       </div>
+      <WindFlow still={still} bars={bars} />
+      <p className={styles.footnote}>
+        Illustrative maths: drag power grows with air speed cubed. Not wind-tunnel measurements.
+      </p>
     </section>
   );
 }

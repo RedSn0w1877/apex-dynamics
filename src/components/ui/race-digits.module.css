@@ -1,0 +1,53 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+/*
+ * The cells are sized for Sofia Sans Extra Condensed 900 italic, so the family is
+ * fixed here; set the size (and colour) from outside. Line-height .82 puts the
+ * glyph baseline .71em down each cell, the same as the root's strut, so the
+ * digits sit on the surrounding text's baseline.
+ *
+ * The cells and separators carry short global names (rd-c, rd-s, scoped under the
+ * module's .rd): race-digits.tsx explains why. Each cell's ::before is the 0–9
+ * strip, written by `content` ("\A " is a line break; the space ends the escape).
+ */
+.rd {
+  display: inline-block;
+  height: 0.82em;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 900;
+  line-height: 0.82;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rd > :global(.rd-c),
+.rd > :global(.rd-s) {
+  display: inline-block;
+  vertical-align: top;
+  height: 0.82em;
+  text-align: center;
+  /* Clip to one digit vertically, but let the italic overhang spill sideways. */
+  clip-path: inset(0 -0.12em);
+}
+
+.rd > :global(.rd-c) {
+  width: 0.47em;
+}
+
+.rd > :global(.rd-s) {
+  width: 0.2em;
+}
+
+.rd > :global(.rd-c)::before {
+  content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9";
+  display: block;
+  white-space: pre;
+  translate: 0 calc(var(--d, 0) * -0.82em);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rd > :global(.rd-c)::before {
+    transition: translate 180ms var(--ease-snap);
+  }
+}

@@ -1,0 +1,87 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+.gate {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 32px;
+  padding: 24px var(--edge) 0;
+}
+
+/* The 4 px volt rule across the full width. */
+.gate::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--volt);
+  transform-origin: left;
+}
+
+.head {
+  margin: 0;
+  font-size: clamp(2.125rem, 3.2vw, 3rem);
+  color: var(--chalk);
+  transform-origin: left bottom;
+}
+
+/* Decorative duplicate of the footer notice (aria-hidden), still held to AA: --timing-text is 4.85:1. */
+.timing {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--timing-text);
+}
+
+@media (max-width: 639px) {
+  .gate {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/*
+ * Scroll-driven entrance: the rule wipes in and the head slides from +48 px while
+ * its skew settles. Both run on the gate's own view timeline, only with JS and
+ * no motion preference, and the gate is simply static where unsupported. The
+ * timeline and range must come after the `animation` shorthand, which resets them.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    :global(html.js) .gate {
+      view-timeline: --cp-gate block;
+    }
+
+    :global(html.js) .gate::before {
+      animation: wipe linear both;
+      animation-timeline: --cp-gate;
+      animation-range: entry 10% cover 30%;
+    }
+
+    :global(html.js) .head {
+      animation: gate-in linear both;
+      animation-timeline: --cp-gate;
+      animation-range: entry 10% cover 30%;
+    }
+  }
+}
+
+@keyframes wipe {
+  from {
+    transform: scaleX(0.04);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes gate-in {
+  from {
+    transform: translateX(48px) skewX(-10deg);
+  }
+  to {
+    transform: none;
+  }
+}

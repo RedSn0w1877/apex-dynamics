@@ -4,380 +4,341 @@
 
 import {
   useCallback,
-  useMemo,
+  useEffect,
   useRef,
   useState,
+  type CSSProperties,
+  type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { motion, useReducedMotion } from "motion/react";
-import { LogMark } from "@/components/brand/log-mark";
-import { Reveal } from "@/components/ui/reveal";
-import { TelemetryPulse } from "@/components/ui/telemetry-pulse";
-import { TelemetryReadout } from "@/components/ui/telemetry-readout";
-import { gsap, useGSAP, type ScrollTrigger } from "@/lib/gsap";
-import { TELEMETRY, TELEMETRY_MAX_ELEVATION, TELEMETRY_MAX_KM, TELEMETRY_PEAK, sampleAt } from "@/lib/telemetry-data";
+import { CheckpointGate } from "@/components/course/checkpoint-gate";
+import { Ridge } from "@/components/course/ridge";
+import { RaceDigits, type RaceDigitsHandle } from "@/components/ui/race-digits";
+import { CHECKPOINTS, FINISH, RIDGE_H, RIDGE_W, elevToY, kmToX, ridgePoints } from "@/lib/course";
+import { TELEMETRY, TELEMETRY_MAX_KM, TELEMETRY_PEAK, sampleAt, type TelemetrySample } from "@/lib/telemetry-data";
+import styles from "./telemetry-hud.module.css";
 
-const VIEW_W = 1000;
-const VIEW_H = 280;
-const PAD_TOP = 30;
-const PAD_BOTTOM = 52;
-
-function elevationToY(elevationM: number): number {
-  const usable = VIEW_H - PAD_TOP - PAD_BOTTOM;
-  return VIEW_H - PAD_BOTTOM - (elevationM / TELEMETRY_MAX_ELEVATION) * usable;
-}
-
-function kmToX(km: number): number {
-  return (km / TELEMETRY_MAX_KM) * VIEW_W;
-}
-
-/** Horizontal reference altitudes, so the ridgeline reads as a measured chart. */
-const ELEVATION_BANDS = [0, 100, 200, 300, 400];
-const KM_TICKS = [0, 5, 10, 15, 20, 25, 30];
-
-/**
- * `sensitivity` = the change that counts as "a lot" for this metric, used to
- * normalise the glow so a 4 bpm jump and a 4% energy swing don't flash alike.
+/*
+ * CP1 · KM 6 · STRIDE: run the 30 km course on a full-bleed elevation chart and
+ * watch four numbers react to the hills.
+ *
+ * The render budget is the point of this rewrite:
+ *  - The marker and the travelled line move only through --p and --y on the
+ *    plot (translate and clip-path, both on the compositor). The position
+ *    readout writes its digits straight to the DOM through RaceDigits' ref.
+ *  - React state is the km rounded to 0.5, so React renders at most once per
+ *    half kilometre (60 times over the whole course) to roll the four readouts.
+ *  - One 2.4 s auto-run plays the course when the visitor arrives at the chart
+ *    (in view, settled, no scroll in flight), then stops: no loop, no scroll
+ *    scrub. Any touch, drag or key takes over.
+ *  - The pulse ring animates only under [data-moving], cleared 3 s after the
+ *    last move, so an idle chart runs nothing at all.
+ * Without JS, everything renders at km 0 (142 / 182 / 182 / 84).
  */
-const READOUTS = [
-  { key: "heartRateBpm", label: "Heart rate", unit: "bpm", sensitivity: 6 },
-  { key: "groundContactMs", label: "Foot on ground", unit: "ms", sensitivity: 6 },
-  { key: "cadenceSpm", label: "Step rate", unit: "/min", sensitivity: 5 },
-  { key: "energyReturnPct", label: "Energy returned", unit: "%", sensitivity: 3 },
-] as const;
 
-const PEAK = TELEMETRY_PEAK;
+const POINTS = ridgePoints(RIDGE_W, RIDGE_H);
+const MAX = TELEMETRY_MAX_KM;
+const AUTO_MS = 2400;
+const IDLE_MS = 3000;
+const AXIS = [0, 10, 20, 30] as const;
+
+const clampKm = (km: number) => Math.min(MAX, Math.max(0, km));
+const bucketOf = (km: number) => Math.round(km * 2) / 2;
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+/** The pulse period follows the heart rate, quantised to 6 bpm so it doesn't restart on every bucket. */
+const bpmStep = (bpm: number) => Math.round(bpm / 6) * 6;
+const elevAt = (km: number) => TELEMETRY[km].elevationM;
+
+const READOUTS = [
+  { key: "heartRateBpm", label: "heart rate · beats a minute", format: "000", hero: true },
+  { key: "groundContactMs", label: "foot on the ground · milliseconds", format: "000", hero: false },
+  { key: "cadenceSpm", label: "steps a minute", format: "000", hero: false },
+  { key: "energyReturnPct", label: "energy handed back · %", format: "00", hero: false },
+] as const satisfies readonly { key: keyof TelemetrySample; label: string; format: "000" | "00"; hero: boolean }[];
+
+const valueText = (km: number, s: TelemetrySample) =>
+  `Kilometre ${km}, ${Math.round(s.elevationM)} metres up, heart rate ${s.heartRateBpm}`;
+
+/** The plot's starting position, written once by React; after that only applyKm touches --p and --y. */
+const PLOT_START = { "--p": 0, "--y": elevToY(TELEMETRY[0].elevationM) } as CSSProperties;
+
+const pos = (x: number, y?: number): CSSProperties => {
+  const vars: Record<string, number> = { "--x": x };
+  if (y !== undefined) vars["--cy"] = y;
+  return vars as CSSProperties;
+};
 
 export function TelemetryHud() {
-  const [km, setKm] = useState(0);
-  const sectionRef = useRef<HTMLElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const routeRef = useRef<SVGPathElement>(null);
-  const ruleRef = useRef<HTMLSpanElement>(null);
+  const [bucket, setBucket] = useState(0);
+  const reading = sampleAt(bucket);
 
-  // Once the visitor scrubs for themselves, scrolling stops moving the marker
-  // under their hands. Refs, not state — this must not cause a re-render.
+  const plotRef = useRef<HTMLDivElement>(null);
+  const rangeRef = useRef<HTMLInputElement>(null);
+  const kmDigits = useRef<RaceDigitsHandle | null>(null);
+  const elevDigits = useRef<RaceDigitsHandle | null>(null);
+  const kmRef = useRef(0);
+  const bucketRef = useRef(0);
   const engagedRef = useRef(false);
-  const autoScrubRef = useRef<ScrollTrigger | null>(null);
+  const rafRef = useRef(0);
+  const idleRef = useRef(0);
 
-  const reduce = useReducedMotion();
-  const reading = useMemo(() => sampleAt(km), [km]);
-
-  const pathD = useMemo(() => {
-    // Smooth Catmull-Rom spline for buttery-smooth elevation curves
-    const points = TELEMETRY.map((sample) => ({ x: kmToX(sample.km), y: elevationToY(sample.elevationM) }));
-
-    if (points.length < 2) return "";
-    if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
-
-    // Build smooth curve using cubic Bézier interpolation
-    let path = `M ${points[0].x} ${points[0].y}`;
-
-    for (let i = 0; i < points.length - 1; i++) {
-      const p0 = points[Math.max(i - 1, 0)];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = points[Math.min(i + 2, points.length - 1)];
-
-      // Catmull-Rom to Bézier control point conversion
-      // Tension = 0.5 for smooth, natural curves
-      const tension = 0.5;
-      const cp1x = p1.x + (p2.x - p0.x) / 6 * tension;
-      const cp1y = p1.y + (p2.y - p0.y) / 6 * tension;
-      const cp2x = p2.x - (p3.x - p1.x) / 6 * tension;
-      const cp2y = p2.y - (p3.y - p1.y) / 6 * tension;
-
-      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  const applyKm = useCallback((raw: number) => {
+    const km = clampKm(raw);
+    kmRef.current = km;
+    const sample = sampleAt(km);
+    const plot = plotRef.current;
+    if (plot) {
+      plot.style.setProperty("--p", String(kmToX(km)));
+      plot.style.setProperty("--y", String(elevToY(sample.elevationM)));
+      plot.setAttribute("data-moving", "");
     }
+    kmDigits.current?.update(km);
+    elevDigits.current?.update(sample.elevationM);
+    if (rangeRef.current) rangeRef.current.value = String(km);
 
-    return path;
+    window.clearTimeout(idleRef.current);
+    idleRef.current = window.setTimeout(() => plotRef.current?.removeAttribute("data-moving"), IDLE_MS);
+
+    const next = bucketOf(km);
+    if (next !== bucketRef.current) {
+      bucketRef.current = next;
+      setBucket(next);
+    }
   }, []);
 
-  const areaD = useMemo(() => `${pathD} L ${VIEW_W} ${VIEW_H - PAD_BOTTOM} L 0 ${VIEW_H - PAD_BOTTOM} Z`, [pathD]);
-
-  useGSAP(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    // Draw the ridgeline on first sight. The path is already complete in the
-    // DOM — GSAP is what briefly hides it — so no-JS still renders the chart.
-    const route = routeRef.current;
-    if (route) {
-      const length = route.getTotalLength();
-      gsap.fromTo(
-        route,
-        { strokeDasharray: length, strokeDashoffset: length },
-        {
-          strokeDashoffset: 0,
-          duration: 1.6,
-          ease: "power2.inOut",
-          clearProps: "strokeDasharray,strokeDashoffset",
-          scrollTrigger: { trigger: section, start: "top 80%", once: true },
-        },
-      );
-    }
-
-    // Decorative underline wipe on the heading's accent phrase.
-    if (ruleRef.current) {
-      gsap.from(ruleRef.current, {
-        scaleX: 0,
-        duration: 0.9,
-        ease: "power3.out",
-        scrollTrigger: { trigger: section, start: "top 78%", once: true },
-      });
-    }
-
-    // The run plays itself as the section crosses the viewport, so the HUD is
-    // already alive before anyone touches it. GSAP scrubs a plain proxy object
-    // and we quantise before hitting state, so a scroll frame that doesn't move
-    // the readout doesn't cost a render.
-    const proxy = { km: 0 };
-    const auto = gsap.to(proxy, {
-      km: TELEMETRY_MAX_KM,
-      ease: "none",
-      scrollTrigger: {
-        trigger: section,
-        start: "top 68%",
-        end: "bottom 62%",
-        scrub: 0.6,
-      },
-      onUpdate: () => {
-        if (engagedRef.current) return;
-        setKm(Math.round(proxy.km * 20) / 20);
-      },
-    });
-    autoScrubRef.current = auto.scrollTrigger ?? null;
-  }, []);
-
-  /** Hand control to the visitor and stop the scroll from fighting them. */
+  /** The visitor's hands win: stop the auto-run for good. */
   const takeOver = useCallback(() => {
-    if (engagedRef.current) return;
     engagedRef.current = true;
-    autoScrubRef.current?.kill();
-    autoScrubRef.current = null;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
   }, []);
 
-  const scrubFromPointer = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    takeOver();
-    const rect = svg.getBoundingClientRect();
-    const fraction = (event.clientX - rect.left) / rect.width;
-    setKm(Math.min(Math.max(fraction, 0), 1) * TELEMETRY_MAX_KM);
-  }, [takeOver]);
+  /*
+   * The one auto-run belongs to the visitor's first real arrival, not to the first pixel
+   * of overlap. It starts once the chart is three-quarters in view, has stayed there
+   * 300 ms, and no scroll is in flight (a smooth anchor jump flying past #stride, or a
+   * fast wheel, never spends it). If the visitor leaves before it finishes, it resets
+   * to km 0 and re-arms; once it has played to the end, or the visitor's hands take
+   * over, it is done for good. Skipped under reduced motion.
+   */
+  useEffect(() => {
+    const target = plotRef.current;
+    if (!target || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let inView = false;
+    let dwell = 0;
+    let lastScroll = 0;
+    let done = false;
+    const DWELL_MS = 300;
+    const QUIET_MS = 150;
 
-  const onKeyDown = useCallback((event: ReactKeyboardEvent<SVGSVGElement>) => {
+    const onScroll = () => {
+      lastScroll = performance.now();
+    };
+    const stop = () => {
+      done = true;
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(dwell);
+    };
+    const run = () => {
+      const start = performance.now();
+      const tick = (now: number) => {
+        if (engagedRef.current) return stop();
+        const t = Math.min(1, (now - start) / AUTO_MS);
+        applyKm(easeInOutCubic(t) * MAX);
+        if (t < 1) rafRef.current = requestAnimationFrame(tick);
+        else {
+          rafRef.current = 0;
+          stop();
+        }
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    const tryStart = () => {
+      dwell = 0;
+      if (done || !inView || rafRef.current) return;
+      if (engagedRef.current) return stop();
+      const since = performance.now() - lastScroll;
+      if (since < QUIET_MS) {
+        dwell = window.setTimeout(tryStart, QUIET_MS - since);
+        return;
+      }
+      run();
+    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        const on = entries.some((e) => e.isIntersecting);
+        if (on && !inView) {
+          inView = true;
+          dwell = window.setTimeout(tryStart, DWELL_MS);
+        } else if (!on && inView) {
+          inView = false;
+          window.clearTimeout(dwell);
+          // Left mid-run without touching it: back to the start line, ready for a real arrival.
+          if (rafRef.current && !engagedRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = 0;
+            applyKm(0);
+          }
+        }
+      },
+      { threshold: 0.75 },
+    );
+    window.addEventListener("scroll", onScroll, { passive: true });
+    io.observe(target);
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(dwell);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(idleRef.current);
+    };
+  }, [applyKm]);
+
+  const fromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    applyKm(((event.clientX - box.left) / box.width) * MAX);
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    takeOver();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    fromPointer(event);
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) fromPointer(event);
+  };
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? 5 : 1;
+    const km = kmRef.current;
     let next: number | null = null;
     if (event.key === "ArrowRight" || event.key === "ArrowUp") next = km + step;
     else if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = km - step;
+    else if (event.key === "PageUp") next = km + 5;
+    else if (event.key === "PageDown") next = km - 5;
     else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = TELEMETRY_MAX_KM;
+    else if (event.key === "End") next = MAX;
     if (next === null) return;
     event.preventDefault();
     takeOver();
-    setKm(Math.min(TELEMETRY_MAX_KM, Math.max(0, next)));
-  }, [km, takeOver]);
+    // Keys land on whole kilometres, so the readouts and the spoken value always agree.
+    applyKm(Math.round(next));
+  };
 
-  const markerX = kmToX(reading.km);
-  const markerY = elevationToY(reading.elevationM);
-  const peakX = kmToX(TELEMETRY_PEAK.km);
-  const peakY = elevationToY(TELEMETRY_PEAK.elevationM);
-  const baseY = VIEW_H - PAD_BOTTOM;
-
-  // Quantised so the ring doesn't restart its loop on every scrub frame.
-  const beatSeconds = 60 / Math.max(40, Math.round(reading.heartRateBpm / 6) * 6);
+  const onRange = (event: FormEvent<HTMLInputElement>) => {
+    takeOver();
+    applyKm(Number(event.currentTarget.value));
+  };
 
   return (
-    <section ref={sectionRef} id="telemetry" className="border-b border-gridline">
-      <div className="mx-auto max-w-[1440px] px-5 py-20 md:px-10 md:py-28">
-        <LogMark log="02" title="Stride HUD — 30 km trail effort" />
+    <section id="stride" aria-labelledby="stride-title" className={styles.stride}>
+      <CheckpointGate cp={1} />
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-12">
-          <Reveal className="lg:col-span-4">
-            <h2 className="font-display text-4xl italic font-black uppercase leading-[0.9] tracking-tighter text-chalk md:text-5xl">
-              What 30 km does to{" "}
-              <span className="relative inline-block text-volt">
-                your stride.
-                <span ref={ruleRef} aria-hidden className="absolute -bottom-1 left-0 h-[3px] w-full origin-left bg-volt" />
-              </span>
-            </h2>
-            <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-chalk/65">
-              Explore a simulated 30 km trail run. Drag across the hills to move through it and watch what the climbs do
-              to a runner: heart rate climbs, each foot stays on the ground longer, steps get shorter — and the
-              plate keeps handing energy back.
-            </p>
-            <p className="mt-4 max-w-sm font-mono text-[10px] uppercase leading-relaxed tracking-[0.18em] text-chalk/40">
-              Scroll to play the run — drag, or use the arrow keys, to take the controls.
-            </p>
-          </Reveal>
-
-          <div className="lg:col-span-8">
-            <div className="border border-gridline bg-carbon p-4 md:p-6">
-              <div className="mb-4 flex items-center justify-between gap-4 border-b border-gridline pb-3 font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                <span className="flex items-center gap-2">
-                  <TelemetryPulse bpm={reading.heartRateBpm} />
-                  Live stride trace
-                </span>
-                <span className="text-chalk">
-                  {reading.km.toFixed(1)} km · {reading.elevationM.toFixed(0)} m
-                </span>
-              </div>
-
-              <svg
-                ref={svgRef}
-                viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-                className="w-full cursor-crosshair touch-none"
-                role="slider"
-                aria-label="Scrub route position"
-                aria-valuemin={0}
-                aria-valuemax={TELEMETRY_MAX_KM}
-                aria-valuenow={Math.round(reading.km)}
-                aria-valuetext={`${reading.km.toFixed(1)} kilometers, ${reading.elevationM.toFixed(0)} meters elevation`}
-                tabIndex={0}
-                onPointerDown={(e) => {
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                  scrubFromPointer(e);
-                }}
-                onPointerMove={(e) => {
-                  if (e.buttons !== 1 && e.pointerType !== "touch") return;
-                  scrubFromPointer(e);
-                }}
-                onKeyDown={onKeyDown}
-              >
-                <defs>
-                  <style>{`.telemetry-axis{fill:#52525b;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em}`}</style>
-
-                  {/* Untravelled route: barely-there fill. */}
-                  <linearGradient id="telemetry-elevation-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f5f5f5" stopOpacity="0.09" />
-                    <stop offset="100%" stopColor="#f5f5f5" stopOpacity="0" />
-                  </linearGradient>
-
-                  {/* Travelled route: the volt trail burning in behind the marker. */}
-                  <linearGradient id="telemetry-trail-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ccff00" stopOpacity="0.38" />
-                    <stop offset="100%" stopColor="#ccff00" stopOpacity="0" />
-                  </linearGradient>
-
-                  <filter id="telemetry-glow" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur stdDeviation="3.5" result="telemetry-blur" />
-                    <feMerge>
-                      <feMergeNode in="telemetry-blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-
-                  {/* Everything left of the marker counts as "run so far". */}
-                  <clipPath id="telemetry-progress">
-                    <rect x={0} y={0} width={Math.max(markerX, 0)} height={VIEW_H} />
-                  </clipPath>
-                </defs>
-
-                {/* Altitude reference bands */}
-                {ELEVATION_BANDS.map((band) => (
-                  <g key={band}>
-                    <line x1={0} y1={elevationToY(band)} x2={VIEW_W} y2={elevationToY(band)} stroke="#1f1f23" strokeWidth={1} />
-                    <text x={8} y={elevationToY(band) - 6} className="telemetry-axis">
-                      {band} m
-                    </text>
-                  </g>
-                ))}
-
-                {/* Distance ticks */}
-                {KM_TICKS.map((tick) => (
-                  <g key={tick}>
-                    <line x1={kmToX(tick)} y1={baseY} x2={kmToX(tick)} y2={baseY + 8} stroke="#2a2a30" strokeWidth={1} />
-                    <text
-                      x={kmToX(tick)}
-                      y={baseY + 26}
-                      textAnchor={tick === 0 ? "start" : tick === TELEMETRY_MAX_KM ? "end" : "middle"}
-                      className="telemetry-axis"
-                    >
-                      {tick} km
-                    </text>
-                  </g>
-                ))}
-
-                {/* Full route, drawn faint */}
-                <path d={areaD} fill="url(#telemetry-elevation-fill)" />
-                <path ref={routeRef} d={pathD} fill="none" stroke="#f5f5f5" strokeWidth={2} strokeOpacity={0.45} />
-
-                {/* The part already run, lit up */}
-                <g clipPath="url(#telemetry-progress)">
-                  <path d={areaD} fill="url(#telemetry-trail-fill)" />
-                  <path d={pathD} fill="none" stroke="#ccff00" strokeWidth={2.5} filter="url(#telemetry-glow)" />
-                </g>
-
-                {/* High point of the course */}
-                <circle cx={peakX} cy={peakY} r={2.5} fill="#f5f5f5" fillOpacity={0.8} />
-                <text x={peakX} y={peakY - 12} textAnchor="middle" className="telemetry-axis" fill="#f5f5f5">
-                  HIGH POINT {PEAK.elevationM} m
-                </text>
-
-                {/* Current position */}
-                <line x1={markerX} y1={0} x2={markerX} y2={baseY} stroke="#ccff00" strokeWidth={1} strokeOpacity={0.5} strokeDasharray="4 4" />
-                {!reduce && (
-                  <motion.circle
-                    cx={markerX}
-                    cy={markerY}
-                    // Pulse with scale, not `r`: motion writes r="undefined" before
-                    // its first frame, which is invalid SVG and logs an error.
-                    r={6}
-                    fill="none"
-                    stroke="#ccff00"
-                    strokeWidth={1.5}
-                    vectorEffect="non-scaling-stroke"
-                    style={{ transformBox: "fill-box", transformOrigin: "center" }}
-                    animate={{ scale: [1, 4], opacity: [0.6, 0] }}
-                    transition={{ duration: beatSeconds, repeat: Infinity, ease: "easeOut" }}
-                  />
-                )}
-                <circle cx={markerX} cy={markerY} r={6} fill="#ccff00" filter="url(#telemetry-glow)" />
-              </svg>
-
-              <input
-                type="range"
-                min={0}
-                max={TELEMETRY_MAX_KM}
-                step={0.1}
-                value={km}
-                onChange={(e) => {
-                  takeOver();
-                  setKm(Number(e.target.value));
-                }}
-                aria-label="Route position, kilometers"
-                className="mt-4 h-1 w-full cursor-pointer appearance-none bg-gridline accent-[#ccff00]"
-              />
-              <div className="mt-2 flex justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/50">
-                <span>0 km</span>
-                <span className="text-chalk">
-                  {reading.km.toFixed(1)} km · {reading.elevationM.toFixed(0)} m
-                </span>
-                <span>{TELEMETRY_MAX_KM} km</span>
-              </div>
-            </div>
-
-            <dl className="mt-6 grid grid-cols-2 gap-px border border-gridline bg-gridline md:grid-cols-4">
-              {READOUTS.map((readout) => (
-                <TelemetryReadout
-                  key={readout.key}
-                  label={readout.label}
-                  value={reading[readout.key]}
-                  unit={readout.unit}
-                  sensitivity={readout.sensitivity}
-                >
-                  {readout.key === "heartRateBpm" ? (
-                    <TelemetryPulse bpm={reading.heartRateBpm} className="ml-2 align-middle" />
-                  ) : null}
-                </TelemetryReadout>
-              ))}
-            </dl>
-          </div>
+      <div className={styles.head}>
+        <h2 id="stride-title" className={`t-display t-cp ${styles.title}`}>
+          What 30 km of hills does to you.
+        </h2>
+        <div className={styles.intro}>
+          <p>
+            {`A simulated 30 km trail run with ${FINISH.climbM} m of climbing. Drag the runner along the course and watch the hills go to work: heart rate climbs, each foot stays down longer, steps get shorter, and the plate keeps handing energy back.`}
+          </p>
+          <p className={styles.hint}>Drag or click the chart, or use the arrow keys. Shift jumps 5 km.</p>
         </div>
       </div>
+
+      <div className={styles.chart}>
+        <div className={styles.band}>
+          <p aria-hidden="true" className={`t-display ${styles.pos}`}>
+            <RaceDigits ref={kmDigits} value={0} format="00.0" />
+            <span className={styles.unit}>km</span>
+            <span className={styles.sep}>·</span>
+            <RaceDigits ref={elevDigits} value={0} format="000" />
+            <span className={styles.unit}>m</span>
+          </p>
+          <p className={`t-label ${styles.peak}`} style={pos(kmToX(TELEMETRY_PEAK.km))}>
+            {`High point · ${TELEMETRY_PEAK.elevationM} m`}
+          </p>
+        </div>
+
+        <div
+          ref={plotRef}
+          className={styles.plot}
+          style={{ ...PLOT_START, "--bpm": bpmStep(reading.heartRateBpm) } as CSSProperties}
+          role="slider"
+          tabIndex={0}
+          aria-label="Position on the 30 km course"
+          aria-valuemin={0}
+          aria-valuemax={MAX}
+          aria-valuenow={bucket}
+          aria-valuetext={valueText(bucket, reading)}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onKeyDown={onKeyDown}
+        >
+          <Ridge variant="chart" className={styles.ridge} />
+
+          {/* The run so far: the same polyline in volt, revealed up to the marker. */}
+          <div aria-hidden="true" className={styles.travel}>
+            <svg viewBox={`0 0 ${RIDGE_W} ${RIDGE_H}`} preserveAspectRatio="none">
+              <polygon points={`${POINTS} ${RIDGE_W},${RIDGE_H} 0,${RIDGE_H}`} className={styles.travelFill} />
+              <polyline points={POINTS} className={styles.travelLine} />
+            </svg>
+          </div>
+
+          <span aria-hidden="true" className={styles.leader} style={pos(kmToX(TELEMETRY_PEAK.km), elevToY(TELEMETRY_PEAK.elevationM))} />
+
+          {CHECKPOINTS.map((c) => (
+            <span key={c.id} aria-hidden="true" className={styles.cp} style={pos(kmToX(c.km), elevToY(elevAt(c.km)))}>
+              <span className={`t-label ${styles.cpLabel}`}>{`CP${c.cp}`}</span>
+            </span>
+          ))}
+
+          <div aria-hidden="true" className={styles.mx}>
+            <span className={styles.dash} />
+            <div className={styles.my}>
+              <span className={styles.pulse} />
+              <span className={styles.dot} />
+            </div>
+          </div>
+        </div>
+
+        <div aria-hidden="true" className={styles.axis}>
+          {AXIS.map((km) => (
+            <span key={km} className={`t-label ${styles.tick}`} style={pos(kmToX(km))}>{`${km} km`}</span>
+          ))}
+        </div>
+
+        {/* A drag handle for pointers only: the chart above is the one accessible slider. */}
+        <input
+          ref={rangeRef}
+          type="range"
+          min={0}
+          max={MAX}
+          step={0.1}
+          defaultValue={0}
+          tabIndex={-1}
+          aria-hidden="true"
+          onInput={onRange}
+          className={styles.range}
+        />
+      </div>
+
+      <dl className={styles.readouts}>
+        {READOUTS.map((r) => (
+          <div key={r.key} className={r.hero ? `${styles.readout} ${styles.hero}` : styles.readout}>
+            <dt className={`t-label ${styles.label}`}>{r.label}</dt>
+            <dd className={styles.value}>
+              <RaceDigits value={reading[r.key]} format={r.format} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className={styles.note}>Simulated data. Not a real athlete&apos;s file.</p>
     </section>
   );
 }

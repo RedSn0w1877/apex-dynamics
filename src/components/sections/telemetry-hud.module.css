@@ -1,0 +1,414 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+/* CP1 · KM 6 · STRIDE. The chart bleeds to both edges; the section clips sideways only. */
+
+.stride {
+  position: relative;
+  overflow-x: clip;
+  padding-bottom: clamp(88px, 11vw, 176px);
+}
+
+/* ------------------------------------------------------------------ head --- */
+
+.head {
+  display: grid;
+  gap: 24px 48px;
+  padding: 32px var(--edge) 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--chalk);
+  text-wrap: balance;
+}
+
+.intro {
+  max-width: 38ch;
+}
+
+.hint {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--dust);
+}
+
+@media (min-width: 1024px) {
+  .head {
+    grid-template-columns: minmax(0, 1fr) 38ch;
+    align-items: end;
+  }
+}
+
+/* ----------------------------------------------------------------- chart --- */
+
+/*
+ * The plot is inset by --edge so the runner's dot is never cut in half at km 0
+ * or km 30; the course's flat start and finish run on out to both screen edges
+ * as a horizon line, so the chart still reads as full bleed.
+ */
+.chart {
+  --plot-h: clamp(240px, 34svh, 400px);
+  /* Where elevation 0 sits in the plot: elevToY(0) in course.ts (2/46 of the height is padding). */
+  --base: 0.9565;
+  position: relative;
+  margin-top: clamp(32px, 4vw, 64px);
+  padding: 0 var(--edge);
+}
+
+.band {
+  position: relative;
+  height: 3.75rem;
+}
+
+.pos {
+  position: absolute;
+  right: 0;
+  bottom: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 0.14em;
+  margin: 0;
+  font-size: clamp(1.75rem, 2.5vw, 2.75rem);
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+.unit {
+  font-size: 0.6em;
+  color: var(--dust);
+}
+
+.sep {
+  margin-inline: 0.12em;
+  color: var(--timing);
+}
+
+/* "High point · 460 m", ending at the summit's x, with a leader down to it. */
+.peak {
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  bottom: 14px;
+  margin: 0;
+  padding-right: 10px;
+  translate: -100% 0;
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--dust);
+  white-space: nowrap;
+}
+
+.plot {
+  position: relative;
+  height: var(--plot-h);
+  cursor: ew-resize;
+  /* Vertical swipes still scroll the page on phones; sideways drags run the course. */
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.plot:focus-visible {
+  outline-offset: 6px;
+}
+
+/* The horizon: the course's flat start and finish carried out to both screen edges. */
+.plot::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--edge));
+  right: calc(-1 * var(--edge));
+  top: calc(var(--base) * 100%);
+  height: 1.5px;
+  background: var(--ridge);
+}
+
+.ridge {
+  position: absolute;
+  inset: 0;
+}
+
+.travel {
+  position: absolute;
+  inset: 0;
+  /* Everything right of the marker is clipped away; -24px keeps the stroke's ends. */
+  clip-path: inset(-24px calc((1 - var(--p)) * 100%) -24px 0);
+}
+
+.travel svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.travelFill {
+  fill: var(--volt);
+  fill-opacity: 0.07;
+}
+
+.travelLine {
+  fill: none;
+  stroke: var(--volt);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Summit leader: from the band down to just above the high point. */
+.leader {
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  bottom: calc((1 - var(--cy)) * 100% + 10px);
+  height: 18px;
+  border-left: 1px solid var(--timing);
+}
+
+/* Checkpoint marks: a volt tick standing on the course, with its name above. */
+.cp {
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  top: calc(var(--cy) * 100%);
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  translate: 0 -100%;
+  background: var(--volt);
+}
+
+.cpLabel {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  translate: -50% 0;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- marker --- */
+
+/* Two nested translates: x across the plot's width, y down its height. Both on the compositor. */
+.mx {
+  position: absolute;
+  inset: 0;
+  translate: calc(var(--p) * 100%) 0;
+  pointer-events: none;
+}
+
+.dash {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -0.5px;
+  border-left: 1px dashed var(--volt);
+  opacity: 0.6;
+}
+
+.my {
+  position: absolute;
+  inset: 0;
+  translate: 0 calc(var(--y) * 100%);
+}
+
+.dot,
+.pulse {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.dot {
+  background: var(--volt);
+  box-shadow: 0 0 0 4px var(--night);
+}
+
+.pulse {
+  border: 1.5px solid var(--volt);
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------ axis + range --- */
+
+.axis {
+  position: relative;
+  height: 24px;
+  margin-top: 12px;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  left: calc(var(--x) * 100%);
+  translate: -50% 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--dust);
+  white-space: nowrap;
+}
+
+.tick:first-child {
+  translate: 0 0;
+}
+
+.tick:last-child {
+  translate: -100% 0;
+}
+
+/* The pointer handle: 8 px wider than the plot on each side, so the thumb's centre lands on the marker's x. */
+.range {
+  display: block;
+  width: calc(100% + 16px);
+  height: 32px;
+  margin: 4px -8px 0;
+  background: transparent;
+  cursor: ew-resize;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* On touch screens the drag handle gets a full 44 px row; the track and thumb stay as drawn. */
+@media (pointer: coarse) {
+  .range {
+    height: 44px;
+    margin-top: -2px;
+  }
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--timing);
+}
+
+.range::-moz-range-track {
+  height: 2px;
+  background: var(--timing);
+}
+
+.range::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -7px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--volt);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--volt);
+}
+
+/* -------------------------------------------------------------- readouts --- */
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  /* Two shared rows (numbers, then labels) so every number stands on one baseline. */
+  grid-template-rows: auto auto;
+  justify-content: start;
+  gap: 12px clamp(32px, 5.5vw, 120px);
+  margin: clamp(32px, 4vw, 64px) 0 0;
+  padding: 0 var(--edge);
+}
+
+.readout {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: 12px;
+}
+
+.value {
+  grid-row: 1;
+  align-self: end;
+  margin: 0;
+  font-size: clamp(3.5rem, 6vw, 6.5rem);
+  line-height: 0.82;
+  color: var(--chalk);
+}
+
+.hero .value {
+  font-size: clamp(6rem, 11vw, 10rem);
+}
+
+.label {
+  grid-row: 2;
+  max-width: 24ch;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--dust);
+}
+
+.note {
+  margin: 0;
+  padding: 28px var(--edge) 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+/* ----------------------------------------------------------------- phone --- */
+
+@media (max-width: 639px) {
+  /* Two rows in the band: the live position, then the summit label. */
+  .band {
+    height: 5.25rem;
+  }
+
+  .pos {
+    top: 0;
+    right: auto;
+    bottom: auto;
+    left: 0;
+  }
+
+  .readouts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(4, auto);
+    gap: 10px 20px;
+  }
+
+  .readout:nth-child(-n + 2) {
+    margin-bottom: 28px;
+  }
+
+  .hero .value {
+    font-size: 6rem;
+  }
+}
+
+/* ------------------------------------------------------------------ motion --- */
+
+/*
+ * The only time-based animation in the section: the heartbeat ring around the
+ * runner, at the current heart rate, and only while the runner is moving
+ * ([data-moving] clears 3 s after the last move). Idle, it runs nothing.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .plot[data-moving] .pulse {
+    animation: beat calc(60s / var(--bpm)) var(--ease-settle) infinite;
+  }
+}
+
+@keyframes beat {
+  from {
+    scale: 1;
+    opacity: 0.8;
+  }
+  to {
+    scale: 3.2;
+    opacity: 0;
+  }
+}

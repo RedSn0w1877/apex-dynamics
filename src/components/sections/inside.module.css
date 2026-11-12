@@ -1,0 +1,615 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+/*
+ * CP2 · Inside. The section is a tall track holding a sticky stage, so the
+ * page scroll becomes the cut: 260svh on capable desktops, 200svh on lite, and
+ * no track at all under reduced motion or without JS (the stage is then a plain
+ * block and the five layers a plain list).
+ *
+ * The stage is a full-bleed photo-and-canvas plate with the type laid over it:
+ * the named layers down the left (their leader lines run to pins on the cut
+ * face), the cushion readout top-right, the tally and the cut slider along the
+ * bottom. --shift moves the shoe right so the left column stays clear; the
+ * poster and the live camera read the same value.
+ */
+
+.inside {
+  position: relative;
+  /* Air between the cut slider and the next checkpoint's volt rule. */
+  padding-bottom: 72px;
+}
+
+.intro {
+  display: grid;
+  gap: 24px 48px;
+  padding: 32px var(--edge) 40px;
+}
+
+.intro h2 {
+  margin: 0;
+  color: var(--chalk);
+}
+
+.lead {
+  margin: 0;
+  max-width: 38ch;
+}
+
+@media (min-width: 1024px) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr) 38ch;
+    align-items: end;
+  }
+}
+
+/* ------------------------------------------------------------ track & stage --- */
+
+.track {
+  position: relative;
+}
+
+:global(html.js) .track {
+  height: 260svh;
+}
+
+:global(html.js[data-lite]) .track {
+  height: 200svh;
+}
+
+.stage {
+  --shift: 0;
+  position: relative;
+  height: calc(100svh - var(--strip));
+  min-height: 480px;
+  overflow: hidden;
+  background: var(--night);
+  /* Vertical swipes still scroll the page; a horizontal drag scrubs the cut. */
+  touch-action: pan-y;
+}
+
+@media (min-width: 1024px) {
+  .stage {
+    --shift: 0.08;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :global(html.js) .stage {
+    position: sticky;
+    top: var(--strip);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Reduced motion also sets data-lite (device.ts), so match that selector's weight too. */
+  :global(html.js) .track,
+  :global(html.js[data-lite]) .track {
+    height: auto;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .track[data-mode="live"] .stage {
+    cursor: grab;
+  }
+}
+
+.stage[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------- the plate --- */
+
+.poster {
+  position: absolute;
+  inset: 0;
+  display: block;
+  translate: calc(var(--shift) * 100%) 0;
+  scale: var(--poster-scale, 1);
+}
+
+.poster img,
+.still img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.poster img {
+  object-fit: cover;
+}
+
+.track[data-mode="stills"] .poster {
+  display: none;
+}
+
+/* The six cuts are 4:3; on wide stages they sit against the right edge, clear of the callouts. */
+.still {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.still img {
+  object-fit: contain;
+  object-position: 100% 50%;
+}
+
+/*
+ * The hand-off from the Cycles poster to the live scene is an authored beat, not a pop:
+ * it waits for the cut to start (data-cut, set by the controller once the cut moves past
+ * the heel or a drag begins), then the canvas fades up over 480 ms while the poster
+ * underneath dims to meet it, so the two exposures cross halfway instead of jumping.
+ */
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 480ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.track[data-mode="live"][data-cut] .canvas {
+  opacity: 1;
+}
+
+.poster img {
+  transition: filter 480ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.track[data-mode="live"][data-cut] .poster img {
+  filter: brightness(0.5);
+}
+
+.track:not([data-mode="live"]):not([data-mode="live-pending"]) .canvas {
+  display: none;
+}
+
+/* Pins on the cut face and the leader lines to them, placed every frame with transforms only. */
+.marks {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pin,
+.leader {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+}
+
+.pin {
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--chalk);
+  outline: 2px solid var(--night);
+}
+
+.leader {
+  width: 1px;
+  height: 1px;
+  margin-top: -0.5px;
+  background: var(--chalk);
+  opacity: 0.7;
+  transform-origin: 0 50%;
+}
+
+/* ------------------------------------------------------------ the callouts --- */
+
+.hint,
+.callouts {
+  position: absolute;
+  z-index: 2;
+  left: var(--edge);
+  top: 28px;
+  width: min(30vw, 400px);
+  margin: 0;
+}
+
+.hint {
+  display: none;
+  max-width: 26ch;
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--chalk);
+}
+
+:global(html.js) .track[data-station="0"] .hint {
+  display: block;
+}
+
+.callouts {
+  display: grid;
+  gap: 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.callout {
+  /* Room for the italic overhang; the hidden state eats in from the right, like the cut. */
+  clip-path: inset(-0.25em -1em -0.25em 0);
+  transition: clip-path 260ms var(--ease-settle);
+}
+
+:global(html.js) .callout[data-named="false"] {
+  clip-path: inset(-0.25em 100% -0.25em 0);
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  margin: 0;
+  font-size: clamp(1.625rem, 2.3vw, 2.5rem);
+  line-height: 0.9;
+  color: var(--chalk);
+}
+
+/* The layer's cap colour, the same flat colour its section shows in the cut. */
+.chip {
+  flex: none;
+  width: 0.6em;
+  height: 0.42em;
+  transform: skewX(-8deg);
+  outline: 1px solid var(--timing);
+  outline-offset: -1px;
+}
+
+.plain {
+  margin: 6px 0 0;
+  font-size: 17px;
+  line-height: 24px;
+  color: var(--dust);
+  transition: color 200ms ease;
+}
+
+.tech {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 19px;
+  color: var(--dust);
+}
+
+.callout[data-current] .plain {
+  color: var(--chalk);
+}
+
+/*
+ * Reduced motion (no data-scrub): every layer is named from the start, so nothing the
+ * paragraph promises is hidden; the slider's current layer is marked by colour alone.
+ */
+.track:not([data-scrub]) .callout:not([data-current]) .name {
+  color: var(--dust);
+}
+
+:global(html.js) .track:not([data-scrub]) .callout .tech {
+  display: block;
+}
+
+/* Only the layer just cut carries its technical line, so five stay readable on a laptop. */
+:global(html.js) .callout:not([data-current]) .tech {
+  display: none;
+}
+
+/* --------------------------------------------------- readout, tally, slider --- */
+
+.here {
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  right: var(--edge);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--dust);
+}
+
+.hereDigits {
+  font-size: clamp(4.5rem, 8vw, 8.5rem);
+  color: var(--chalk);
+}
+
+.hereText {
+  max-width: 17ch;
+  text-align: right;
+}
+
+.foot {
+  position: absolute;
+  z-index: 2;
+  left: var(--edge);
+  right: var(--edge);
+  bottom: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.tally {
+  justify-self: end;
+  margin: 0;
+  font-size: clamp(1.75rem, 2.6vw, 2.75rem);
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--dust);
+}
+
+.term,
+.total {
+  transition: color 200ms ease;
+}
+
+/* Large type (28 px and up), so the timing tone clears 3:1 for the operators. */
+.op {
+  color: var(--timing);
+}
+
+.term[data-named="true"],
+.tally[data-complete] .total {
+  color: var(--chalk);
+}
+
+:global(html:not(.js)) .term,
+:global(html:not(.js)) .total {
+  color: var(--chalk);
+}
+
+.slider {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+:global(html:not(.js)) .slider {
+  display: none;
+}
+
+.end {
+  font-size: 15px;
+  color: var(--dust);
+}
+
+.rail {
+  position: relative;
+  display: block;
+  height: 44px;
+}
+
+/* The six stations as ticks under the thumb's path (inset by half the thumb). */
+.ticks {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 50%;
+}
+
+.tick {
+  position: absolute;
+  top: -7px;
+  width: 1px;
+  height: 14px;
+  background: var(--timing);
+}
+
+.rail input {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+/* A 2 px timing-grey track (4.09:1, clears the 3:1 control rule) and the thumb as the cutting plane itself. */
+.rail input::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--timing);
+}
+
+.rail input::-moz-range-track {
+  height: 2px;
+  background: var(--timing);
+}
+
+.rail input::-webkit-slider-thumb {
+  width: 6px;
+  height: 30px;
+  margin-top: -14px;
+  border: 0;
+  border-radius: 0;
+  background: var(--volt);
+  transform: skewX(-8deg);
+  transition: transform 140ms var(--ease-snap);
+  appearance: none;
+}
+
+.rail input::-moz-range-thumb {
+  width: 6px;
+  height: 30px;
+  border: 0;
+  border-radius: 0;
+  background: var(--volt);
+  transform: skewX(-8deg);
+  transition: transform 140ms var(--ease-snap);
+}
+
+/* Pressed: the thumb widens a touch under the finger, like taking hold of the blade. */
+.rail input:active::-webkit-slider-thumb {
+  transform: skewX(-8deg) scaleX(1.5);
+}
+
+.rail input:active::-moz-range-thumb {
+  transform: skewX(-8deg) scaleX(1.5);
+}
+
+.rail input:focus-visible {
+  outline-offset: 0;
+}
+
+.fallback {
+  position: absolute;
+  z-index: 3;
+  left: var(--edge);
+  bottom: 120px;
+  max-width: 34ch;
+  margin: 0;
+  font-size: 15px;
+  color: var(--dust);
+}
+
+/* ------------------------------------------------------------------ tablet --- */
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .hint,
+  .callouts {
+    width: min(38vw, 340px);
+  }
+}
+
+/* ------------------------------------------------------------------- phone --- */
+
+@media (max-width: 639px) {
+  /* One centred column: the cut still, the layer just cut, the cushion, then the tally and the slider. */
+  .stage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-bottom: 12px;
+  }
+
+  .poster {
+    position: relative;
+    inset: auto;
+    flex: none;
+    aspect-ratio: 16 / 9;
+    translate: none;
+    scale: none;
+  }
+
+  .still {
+    position: relative;
+    inset: auto;
+    flex: none;
+    aspect-ratio: 4 / 3;
+  }
+
+  .hint,
+  .callouts {
+    position: static;
+    width: auto;
+    margin: 14px var(--edge) 0;
+  }
+
+  .leader {
+    display: none;
+  }
+
+  /* On a phone the leader lines would cross the text: pins only, and only the layer just cut. */
+  :global(html.js) .track[data-scrub] .callout:not([data-current]) {
+    display: none;
+  }
+
+  .name {
+    font-size: 1.75rem;
+  }
+
+  .here {
+    position: static;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 12px;
+    margin: 14px var(--edge) 0;
+  }
+
+  .hereDigits {
+    font-size: 4.5rem;
+  }
+
+  .hereText {
+    text-align: left;
+  }
+
+  .foot {
+    position: static;
+    margin: 22px var(--edge) 0;
+  }
+
+  .tally {
+    justify-self: start;
+    font-size: 2rem;
+  }
+}
+
+/* ------------------------------------------------------------------- no JS --- */
+
+:global(html:not(.js)) .stage {
+  display: grid;
+  gap: 32px;
+  height: auto;
+  min-height: 0;
+  padding-bottom: 72px;
+  overflow: visible;
+}
+
+:global(html:not(.js)) .poster {
+  position: relative;
+  inset: auto;
+  translate: none;
+  scale: none;
+  aspect-ratio: 16 / 9;
+}
+
+:global(html:not(.js)) .canvas,
+:global(html:not(.js)) .marks {
+  display: none;
+}
+
+:global(html:not(.js)) .callouts {
+  position: static;
+  width: auto;
+  margin: 0 var(--edge);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 28px 32px;
+}
+
+:global(html:not(.js)) .here {
+  position: static;
+  align-items: flex-start;
+  margin: 0 var(--edge);
+}
+
+:global(html:not(.js)) .hereText {
+  text-align: left;
+}
+
+:global(html:not(.js)) .foot {
+  position: static;
+  margin: 0 var(--edge);
+}
+
+:global(html:not(.js)) .tally {
+  justify-self: start;
+}
+
+/* Reduced motion on a phone: no sticky stage, so it grows to hold all five named layers. */
+@media (max-width: 639px) {
+  :global(html.js) .track:not([data-scrub]) .stage {
+    height: auto;
+    min-height: 0;
+  }
+}

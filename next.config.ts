@@ -21,29 +21,16 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: true,
 
-  images: {
-    unoptimized: true,
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60,
-  },
+  // No image server on a static host. Stills are pre-encoded AVIF/WebP in src/assets/apex.
+  images: { unoptimized: true },
+
+  // Runtime fetches of files in public/ (the 3D pack, the Draco decoder) need the prefix too;
+  // src/lib/base-path.ts reads this.
+  env: { NEXT_PUBLIC_BASE_PATH: isProd ? REPO_PATH : "" },
 
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
-  },
-
-  experimental: {
-    optimizePackageImports: ['lucide-react', 'motion', '@react-three/fiber', '@react-three/drei'],
-  },
-
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.(glsl|vs|fs|vert|frag)$/,
-      exclude: /node_modules/,
-      use: ['raw-loader', 'glslify-loader'],
-    });
-    return config;
+    // Keep console.info and console.error: CopyrightGuard's notice is a console.info.
+    removeConsole: isProd ? { exclude: ["info", "error"] } : false,
   },
 };
 

@@ -1,0 +1,69 @@
+/* © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute. */
+
+/* One readable column at the left edge, never centred. */
+.main {
+  max-width: calc(42rem + 2 * var(--edge));
+  padding: calc(var(--strip) + clamp(40px, 6vw, 96px)) var(--edge) 0;
+}
+
+.h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.1;
+  color: var(--chalk);
+}
+
+.updated {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--dust);
+}
+
+.sections {
+  display: grid;
+  gap: 36px;
+  margin-top: 48px;
+}
+
+.h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--chalk);
+}
+
+.body {
+  color: var(--chalk);
+}
+
+.body p + p {
+  margin-top: 12px;
+}
+
+/* The 404 (app/not-found.tsx): one plain sentence and the way home. */
+.lead {
+  max-width: 42ch;
+  margin: 16px 0 0;
+  color: var(--dust);
+}
+
+.home {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 20px;
+  font-size: 20px;
+  color: var(--chalk);
+  text-decoration: underline;
+  text-decoration-color: var(--volt);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home:hover {
+    color: var(--volt);
+  }
+}

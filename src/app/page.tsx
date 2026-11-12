@@ -1,37 +1,37 @@
 // © 2026 HVNF Studios. All rights reserved. Portfolio sample — do not redistribute.
 
-import { SiteNav } from "@/components/sections/site-nav";
+import { CourseStrip } from "@/components/course/course-strip";
+import { Bib } from "@/components/sections/bib";
+import { FinishLine } from "@/components/sections/finish-line";
 import { Hero } from "@/components/sections/hero";
+import { Inside } from "@/components/sections/inside";
 import { TelemetryHud } from "@/components/sections/telemetry-hud";
-import { ShoeLayers } from "@/components/sections/shoe-layers";
 import { WindTunnel } from "@/components/sections/wind-tunnel";
-import { Allocation } from "@/components/sections/allocation";
-import { SiteFooter } from "@/components/sections/site-footer";
-import { IntroSequence } from "@/components/ui/intro-sequence";
 
+/*
+ * The page is the race: the start line, four checkpoints, the finish. It stays a
+ * server component; each section brings its own small client islands.
+ *
+ * No Suspense boundaries on purpose. They would let React hydrate section by
+ * section, but this Next build's prerender outlines every boundary's HTML into a
+ * hidden <div> that only an inline script reveals, so with JavaScript off the
+ * page below the hero would be blank (measured in fixer round 1).
+ */
 export default function Home() {
   return (
     <>
-      {/*
-        Client-only cold open. It renders nothing on the server and tears itself
-        down on a timer, so the page below is always present and always reachable.
-      */}
-      <IntroSequence />
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-20 focus:z-[60] focus:bg-volt focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:uppercase focus:text-void"
-      >
+      <a href="#main" className="skip">
         Skip to content
       </a>
-      <SiteNav />
+      <CourseStrip />
       <main id="main">
         <Hero />
         <TelemetryHud />
-        <ShoeLayers />
+        <Inside />
         <WindTunnel />
-        <Allocation />
+        <Bib />
       </main>
-      <SiteFooter />
+      <FinishLine />
     </>
   );
 }
